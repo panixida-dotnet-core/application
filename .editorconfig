@@ -139,3 +139,6 @@ dotnet_diagnostic.CS1591.severity = none
 
 [src/**/*.cs]
 dotnet_diagnostic.CS1591.severity = error
+
+[I{Query,Command,Request}.cs]
+dotnet_diagnostic.S2326.severity = none
