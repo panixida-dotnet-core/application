@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsPackable>true</IsPackable>
+
+        <AssemblyName>PANiXiDA.Core.Application</AssemblyName>
+
+        <PackageId>PANiXiDA.Core.Application</PackageId>
+        <Description>Core application-layer abstractions and building blocks for .NET applications, including contracts, messaging, validation, and use case orchestration.</Description>
+        <PackageTags>dotnet;application-layer;clean-architecture;ddd;cqrs;use-cases;abstractions;contracts;validation;mediator</PackageTags>
+
+        <RepositoryUrl>https://github.com/panixida-dotnet-core/application</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/panixida-dotnet-core/application</PackageProjectUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nerdbank.GitVersioning">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="PANiXiDA.Core.Domain" />
+        <PackageReference Include="PANiXiDA.Core.ResultPattern" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="PANiXiDA.Core.ResultPattern" />
+        <Using Include="PANiXiDA.Core.Domain.DomainEvents" />
+        <Using Include="PANiXiDA.Core.Domain.AggregateRoots" />
+    </ItemGroup>
+</Project>
