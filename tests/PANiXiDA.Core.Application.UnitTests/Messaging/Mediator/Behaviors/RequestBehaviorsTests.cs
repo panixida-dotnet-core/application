@@ -20,45 +20,6 @@ public sealed class RequestBehaviorsTests
         unitOfWork.LastCancellationToken.Should().Be(cancellationTokenSource.Token);
     }
 
-    [Fact(DisplayName = "SaveChangesBehavior saves changes for successful commands in an active transaction")]
-    public async Task AfterAsync_WhenCommandSucceededInActiveTransaction_SavesChanges()
-    {
-        var unitOfWork = new TestUnitOfWork
-        {
-            HasActiveTransaction = true
-        };
-        var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
-
-        await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
-
-        unitOfWork.SaveChangesCalls.Should().Be(1);
-    }
-
-    [Fact(DisplayName = "SaveChangesBehavior skips when there is no active transaction")]
-    public async Task AfterAsync_WhenTransactionIsNotActive_DoesNotSaveChanges()
-    {
-        var unitOfWork = new TestUnitOfWork();
-        var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
-
-        await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
-
-        unitOfWork.SaveChangesCalls.Should().Be(0);
-    }
-
-    [Fact(DisplayName = "SaveChangesBehavior skips failed command results")]
-    public async Task AfterAsync_WhenCommandFailed_DoesNotSaveChanges()
-    {
-        var unitOfWork = new TestUnitOfWork
-        {
-            HasActiveTransaction = true
-        };
-        var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
-
-        await behavior.AfterAsync(new TestCommand(), CreateFailureResult(), CancellationToken.None);
-
-        unitOfWork.SaveChangesCalls.Should().Be(0);
-    }
-
     [Fact(DisplayName = "CommitTransactionBehavior commits successful commands in an active transaction")]
     public async Task AfterAsync_WhenCommandSucceededInActiveTransaction_CommitsTransaction()
     {

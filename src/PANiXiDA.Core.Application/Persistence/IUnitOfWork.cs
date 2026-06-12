@@ -6,13 +6,6 @@
 public interface IUnitOfWork
 {
     /// <summary>
-    /// Persists pending changes in the current unit of work.
-    /// </summary>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    Task SaveChangesAsync(CancellationToken cancellationToken);
-
-    /// <summary>
     /// Executes an action inside a transaction managed by the unit of work.
     /// </summary>
     /// <param name="action">The action to execute inside the transaction.</param>
