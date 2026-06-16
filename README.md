@@ -18,6 +18,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Mediator contracts for command/query dispatch and handler implementation.
 - Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
+- FluentValidation extension for converting failed domain factory `Result<T>` values into property validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, repository, and aggregate tracker abstractions for DDD persistence boundaries.
 - Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
@@ -128,6 +129,41 @@ The exact registration mechanism depends on the mediator or composition root use
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
 
+## Domain Value Validation
+
+`MustBeValidDomainValue` adds a FluentValidation rule that calls a domain value factory returning `Result<T>`.
+When the factory fails, each result error message is added as a validation failure for the current property.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Validation;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record CreateUserCommand(string Email);
+
+public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
+{
+    public CreateUserCommandValidator()
+    {
+        RuleFor(command => command.Email)
+            .MustBeValidDomainValue(Email.Create);
+    }
+}
+
+public sealed record Email(string Value)
+{
+    public static Result<Email> Create(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Result.Failure<Email>(Error.Validation("Email is required."));
+        }
+
+        return Result.Success(new Email(value));
+    }
+}
+```
+
 ## API Overview
 
 ### Messaging
@@ -138,6 +174,10 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 - `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
+
+### Validation
+
+- `MustBeValidDomainValue` validates a property through a domain factory that returns `Result<T>` and maps failed result errors to FluentValidation failures.
 
 ### Domain Events
 
