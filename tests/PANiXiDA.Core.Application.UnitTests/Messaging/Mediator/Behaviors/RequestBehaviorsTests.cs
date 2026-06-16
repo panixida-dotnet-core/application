@@ -1,4 +1,6 @@
+using FluentValidation;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 
@@ -13,11 +15,86 @@ public sealed class RequestBehaviorsTests
         var behavior = new BeginTransactionBehavior<TestCommand, Result>(unitOfWork);
         using var cancellationTokenSource = new CancellationTokenSource();
 
-        await behavior.BeforeAsync(new TestCommand(), cancellationTokenSource.Token);
+        var result = await behavior.BeforeAsync(new TestCommand(), cancellationTokenSource.Token);
 
-        unitOfWork.BeginTransactionCalls.Should().Be(1);
-        unitOfWork.HasActiveTransaction.Should().BeTrue();
-        unitOfWork.LastCancellationToken.Should().Be(cancellationTokenSource.Token);
+        result.IsSuccess.ShouldBeTrue();
+        unitOfWork.BeginTransactionCalls.ShouldBe(1);
+        unitOfWork.HasActiveTransaction.ShouldBeTrue();
+        unitOfWork.LastCancellationToken.ShouldBe(cancellationTokenSource.Token);
+    }
+
+    [Fact(DisplayName = "ValidationBehavior returns success when validators are missing")]
+    public async Task BeforeAsync_WhenValidatorsAreMissing_ReturnsSuccess()
+    {
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result>([]);
+
+        var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: ""), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "ValidationBehavior returns success when validation succeeds")]
+    public async Task BeforeAsync_WhenValidationSucceeds_ReturnsSuccess()
+    {
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
+            [new TestValidatedCommandValidator()]);
+
+        var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: "name"), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "ValidationBehavior returns validation failure for invalid commands")]
+    public async Task BeforeAsync_WhenCommandValidationFails_ReturnsValidationFailure()
+    {
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
+            [new TestValidatedCommandValidator()]);
+
+        var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: ""), CancellationToken.None);
+
+        result.IsFailure.ShouldBeTrue();
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Type.ShouldBe(ErrorType.Validation);
+        error.Message.ShouldBe("Name is required.");
+        error.Metadata[Error.FieldMetadataKey].ShouldBe(nameof(TestValidatedCommand.Name));
+    }
+
+    [Fact(DisplayName = "ValidationBehavior returns validation failure for invalid queries")]
+    public async Task BeforeAsync_WhenQueryValidationFails_ReturnsValidationFailure()
+    {
+        var behavior = new ValidationBehavior<TestValidatedQuery, Result<string>>(
+            [new TestValidatedQueryValidator()]);
+
+        var result = await behavior.BeforeAsync(new TestValidatedQuery(Name: ""), CancellationToken.None);
+
+        result.IsFailure.ShouldBeTrue();
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Type.ShouldBe(ErrorType.Validation);
+        error.Message.ShouldBe("Name is required.");
+        error.Metadata[Error.FieldMetadataKey].ShouldBe(nameof(TestValidatedQuery.Name));
+    }
+
+    [Fact(DisplayName = "ValidationBehavior throws when validators collection is null")]
+    public void Constructor_WhenValidatorsAreNull_Throws()
+    {
+        Action act = () => _ = new ValidationBehavior<TestValidatedCommand, Result>(null!);
+
+        var exception = Should.Throw<ArgumentNullException>(act);
+
+        exception.ParamName.ShouldBe("validators");
+    }
+
+    [Fact(DisplayName = "ValidationBehavior throws when request is null")]
+    public async Task BeforeAsync_WhenRequestIsNull_Throws()
+    {
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
+            [new TestValidatedCommandValidator()]);
+
+        Func<Task> act = () => behavior.BeforeAsync(null!, CancellationToken.None);
+
+        var exception = await Should.ThrowAsync<ArgumentNullException>(act);
+
+        exception.ParamName.ShouldBe("request");
     }
 
     [Fact(DisplayName = "CommitTransactionBehavior commits successful commands in an active transaction")]
@@ -31,7 +108,7 @@ public sealed class RequestBehaviorsTests
 
         await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
-        unitOfWork.CommitTransactionCalls.Should().Be(1);
+        unitOfWork.CommitTransactionCalls.ShouldBe(1);
     }
 
     [Fact(DisplayName = "CommitTransactionBehavior skips when there is no active transaction")]
@@ -42,7 +119,7 @@ public sealed class RequestBehaviorsTests
 
         await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
-        unitOfWork.CommitTransactionCalls.Should().Be(0);
+        unitOfWork.CommitTransactionCalls.ShouldBe(0);
     }
 
     [Fact(DisplayName = "CommitTransactionBehavior skips failed command results")]
@@ -56,7 +133,7 @@ public sealed class RequestBehaviorsTests
 
         await behavior.AfterAsync(new TestCommand(), CreateFailureResult(), CancellationToken.None);
 
-        unitOfWork.CommitTransactionCalls.Should().Be(0);
+        unitOfWork.CommitTransactionCalls.ShouldBe(0);
     }
 
     [Fact(DisplayName = "CleanupTransactionBehavior skips when there is no active transaction")]
@@ -67,8 +144,8 @@ public sealed class RequestBehaviorsTests
 
         await behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None);
 
-        unitOfWork.RollbackTransactionCalls.Should().Be(0);
-        unitOfWork.DisposeTransactionCalls.Should().Be(0);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(0);
     }
 
     [Fact(DisplayName = "CleanupTransactionBehavior disposes successful active transactions")]
@@ -82,8 +159,8 @@ public sealed class RequestBehaviorsTests
 
         await behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None);
 
-        unitOfWork.RollbackTransactionCalls.Should().Be(0);
-        unitOfWork.DisposeTransactionCalls.Should().Be(1);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
     [Fact(DisplayName = "CleanupTransactionBehavior rolls back failed command results")]
@@ -97,8 +174,8 @@ public sealed class RequestBehaviorsTests
 
         await behavior.FinallyAsync(new TestCommand(), CreateFailureResult(), null, CancellationToken.None);
 
-        unitOfWork.RollbackTransactionCalls.Should().Be(1);
-        unitOfWork.DisposeTransactionCalls.Should().Be(1);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(1);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
     [Fact(DisplayName = "CleanupTransactionBehavior rolls back when the command result is missing")]
@@ -112,8 +189,8 @@ public sealed class RequestBehaviorsTests
 
         await behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None);
 
-        unitOfWork.RollbackTransactionCalls.Should().Be(1);
-        unitOfWork.DisposeTransactionCalls.Should().Be(1);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(1);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
     [Fact(DisplayName = "CleanupTransactionBehavior rolls back when an exception is provided")]
@@ -131,8 +208,8 @@ public sealed class RequestBehaviorsTests
             new InvalidOperationException(),
             CancellationToken.None);
 
-        unitOfWork.RollbackTransactionCalls.Should().Be(1);
-        unitOfWork.DisposeTransactionCalls.Should().Be(1);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(1);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior publishes events from tracked aggregates")]
@@ -151,10 +228,10 @@ public sealed class RequestBehaviorsTests
 
         await behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
 
-        eventBus.PublishedEvents.Should().Equal(firstEvent, secondEvent);
-        aggregateRoot.GetDomainEvents().Should().BeEmpty();
-        aggregateTracker.ClearCalls.Should().Be(1);
-        aggregateTracker.GetAll().Should().BeEmpty();
+        eventBus.PublishedEvents.ShouldBe(new[] { firstEvent, secondEvent });
+        aggregateRoot.GetDomainEvents().ShouldBeEmpty();
+        aggregateTracker.ClearCalls.ShouldBe(1);
+        aggregateTracker.GetAll().ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior clears tracking without publishing failed request results")]
@@ -170,10 +247,10 @@ public sealed class RequestBehaviorsTests
 
         await behavior.AfterAsync(new TestRequest(), CreateFailureResult(), CancellationToken.None);
 
-        eventBus.PublishedEvents.Should().BeEmpty();
-        aggregateRoot.GetDomainEvents().Should().BeEmpty();
-        aggregateTracker.ClearCalls.Should().Be(1);
-        aggregateTracker.GetAll().Should().BeEmpty();
+        eventBus.PublishedEvents.ShouldBeEmpty();
+        aggregateRoot.GetDomainEvents().ShouldBeEmpty();
+        aggregateTracker.ClearCalls.ShouldBe(1);
+        aggregateTracker.GetAll().ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior does not clear tracking when publishing throws")]
@@ -192,16 +269,40 @@ public sealed class RequestBehaviorsTests
 
         Func<Task> act = () => behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
 
-        await act.Should()
-            .ThrowAsync<InvalidOperationException>()
-            .WithMessage("Publish failed.");
-        aggregateRoot.GetDomainEvents().Should().NotBeEmpty();
-        aggregateTracker.ClearCalls.Should().Be(0);
-        aggregateTracker.GetAll().Should().ContainSingle();
+        var exception = await Should.ThrowAsync<InvalidOperationException>(act);
+
+        exception.Message.ShouldBe("Publish failed.");
+        aggregateRoot.GetDomainEvents().ShouldNotBeEmpty();
+        aggregateTracker.ClearCalls.ShouldBe(0);
+        aggregateTracker.GetAll().ShouldHaveSingleItem();
     }
 
     private static Result CreateFailureResult()
     {
         return Result.Failure(Error.Failure("Failure."));
+    }
+
+    private sealed record TestValidatedCommand(string Name) : ICommand<Result>;
+
+    private sealed record TestValidatedQuery(string Name) : IQuery<Result<string>>;
+
+    private sealed class TestValidatedCommandValidator : AbstractValidator<TestValidatedCommand>
+    {
+        public TestValidatedCommandValidator()
+        {
+            RuleFor(command => command.Name)
+                .NotEmpty()
+                .WithMessage("Name is required.");
+        }
+    }
+
+    private sealed class TestValidatedQueryValidator : AbstractValidator<TestValidatedQuery>
+    {
+        public TestValidatedQueryValidator()
+        {
+            RuleFor(query => query.Name)
+                .NotEmpty()
+                .WithMessage("Name is required.");
+        }
     }
 }

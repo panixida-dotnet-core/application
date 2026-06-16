@@ -20,11 +20,15 @@ public sealed class BeginTransactionBehavior<TCommand, TResult>(IUnitOfWork unit
     /// </summary>
     /// <param name="request">The command being processed.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    public async Task BeforeAsync(
+    /// <returns>
+    /// A task that returns a successful result when request processing should continue to the handler.
+    /// </returns>
+    public async Task<Result> BeforeAsync(
         TCommand request,
         CancellationToken cancellationToken)
     {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+        return Result.Success();
     }
 }

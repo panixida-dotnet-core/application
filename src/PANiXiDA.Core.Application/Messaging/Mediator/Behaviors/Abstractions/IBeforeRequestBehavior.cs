@@ -16,8 +16,10 @@ public interface IBeforeRequestBehavior<TRequest, TResult>
     /// </summary>
     /// <param name="request">The request being processed.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    Task BeforeAsync(
+    /// <returns>
+    /// A task that returns a successful result to continue request processing, or a failed result to stop it.
+    /// </returns>
+    Task<Result> BeforeAsync(
         TRequest request,
         CancellationToken cancellationToken);
 }

@@ -12,8 +12,8 @@ public sealed class PaginationParametersTests
         var skip = parameters.Skip;
         var take = parameters.Take;
 
-        skip.Should().Be(40);
-        take.Should().Be(20);
+        skip.ShouldBe(40);
+        take.ShouldBe(20);
     }
 
     [Fact(DisplayName = "Skip and Take clamp invalid page values to one")]
@@ -24,8 +24,8 @@ public sealed class PaginationParametersTests
         var skip = parameters.Skip;
         var take = parameters.Take;
 
-        skip.Should().Be(0);
-        take.Should().Be(1);
+        skip.ShouldBe(0);
+        take.ShouldBe(1);
     }
 
     [Fact(DisplayName = "With expression copies and updates pagination parameters")]
@@ -39,7 +39,7 @@ public sealed class PaginationParametersTests
             PageSize = 20
         };
 
-        updated.PageNumber.Should().Be(2);
-        updated.PageSize.Should().Be(20);
+        updated.PageNumber.ShouldBe(2);
+        updated.PageSize.ShouldBe(20);
     }
 }

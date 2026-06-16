@@ -15,13 +15,13 @@ public sealed class PaginationResultTests
             pageSize: 2,
             totalCount: 5);
 
-        result.Items.Should().BeSameAs(items);
-        result.PageNumber.Should().Be(2);
-        result.PageSize.Should().Be(2);
-        result.TotalCount.Should().Be(5);
-        result.TotalPages.Should().Be(3);
-        result.HasPreviousPage.Should().BeTrue();
-        result.HasNextPage.Should().BeTrue();
+        result.Items.ShouldBeSameAs(items);
+        result.PageNumber.ShouldBe(2);
+        result.PageSize.ShouldBe(2);
+        result.TotalCount.ShouldBe(5);
+        result.TotalPages.ShouldBe(3);
+        result.HasPreviousPage.ShouldBeTrue();
+        result.HasNextPage.ShouldBeTrue();
     }
 
     [Fact(DisplayName = "Create copies enumerable items into a read-only list")]
@@ -35,10 +35,10 @@ public sealed class PaginationResultTests
             pageSize: 10,
             totalCount: 2);
 
-        result.Items.Should().Equal(1, 2);
-        result.Items.Should().BeAssignableTo<IReadOnlyList<int>>();
-        result.HasPreviousPage.Should().BeFalse();
-        result.HasNextPage.Should().BeFalse();
+        result.Items.ShouldBe(new[] { 1, 2 });
+        result.Items.ShouldBeAssignableTo<IReadOnlyList<int>>();
+        result.HasPreviousPage.ShouldBeFalse();
+        result.HasNextPage.ShouldBeFalse();
     }
 
     [Fact(DisplayName = "Empty returns an empty page result")]
@@ -46,13 +46,13 @@ public sealed class PaginationResultTests
     {
         var result = PaginationResult<string>.Empty(pageNumber: 1, pageSize: 25);
 
-        result.Items.Should().BeEmpty();
-        result.PageNumber.Should().Be(1);
-        result.PageSize.Should().Be(25);
-        result.TotalCount.Should().Be(0);
-        result.TotalPages.Should().Be(0);
-        result.HasPreviousPage.Should().BeFalse();
-        result.HasNextPage.Should().BeFalse();
+        result.Items.ShouldBeEmpty();
+        result.PageNumber.ShouldBe(1);
+        result.PageSize.ShouldBe(25);
+        result.TotalCount.ShouldBe(0);
+        result.TotalPages.ShouldBe(0);
+        result.HasPreviousPage.ShouldBeFalse();
+        result.HasNextPage.ShouldBeFalse();
     }
 
     [Fact(DisplayName = "Create throws when items are null")]
@@ -64,9 +64,9 @@ public sealed class PaginationResultTests
             pageSize: 10,
             totalCount: 0);
 
-        act.Should()
-            .Throw<ArgumentNullException>()
-            .WithParameterName("items");
+        var exception = Should.Throw<ArgumentNullException>(act);
+
+        exception.ParamName.ShouldBe("items");
     }
 
     [Fact(DisplayName = "Create throws when page number is not positive")]
@@ -78,10 +78,10 @@ public sealed class PaginationResultTests
             pageSize: 10,
             totalCount: 0);
 
-        act.Should()
-            .Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("pageNumber")
-            .WithMessage("*Номер страницы должен быть больше 0.*");
+        var exception = Should.Throw<ArgumentOutOfRangeException>(act);
+
+        exception.ParamName.ShouldBe("pageNumber");
+        exception.Message.ShouldContain("Номер страницы должен быть больше 0.");
     }
 
     [Fact(DisplayName = "Create throws when page size is not positive")]
@@ -93,10 +93,10 @@ public sealed class PaginationResultTests
             pageSize: 0,
             totalCount: 0);
 
-        act.Should()
-            .Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("pageSize")
-            .WithMessage("*Размер страницы должен быть больше 0.*");
+        var exception = Should.Throw<ArgumentOutOfRangeException>(act);
+
+        exception.ParamName.ShouldBe("pageSize");
+        exception.Message.ShouldContain("Размер страницы должен быть больше 0.");
     }
 
     [Fact(DisplayName = "Create throws when total count is negative")]
@@ -108,9 +108,9 @@ public sealed class PaginationResultTests
             pageSize: 10,
             totalCount: -1);
 
-        act.Should()
-            .Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("totalCount")
-            .WithMessage("*Общее количество элементов не может быть отрицательным.*");
+        var exception = Should.Throw<ArgumentOutOfRangeException>(act);
+
+        exception.ParamName.ShouldBe("totalCount");
+        exception.Message.ShouldContain("Общее количество элементов не может быть отрицательным.");
     }
 }

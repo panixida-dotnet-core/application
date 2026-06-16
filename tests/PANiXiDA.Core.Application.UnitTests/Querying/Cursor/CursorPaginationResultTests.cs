@@ -17,12 +17,12 @@ public sealed class CursorPaginationResultTests
             hasNextPage: true,
             hasPreviousPage: true);
 
-        result.Items.Should().BeSameAs(items);
-        result.Limit.Should().Be(2);
-        result.NextCursor.Should().Be("next");
-        result.PreviousCursor.Should().Be("previous");
-        result.HasNextPage.Should().BeTrue();
-        result.HasPreviousPage.Should().BeTrue();
+        result.Items.ShouldBeSameAs(items);
+        result.Limit.ShouldBe(2);
+        result.NextCursor.ShouldBe("next");
+        result.PreviousCursor.ShouldBe("previous");
+        result.HasNextPage.ShouldBeTrue();
+        result.HasPreviousPage.ShouldBeTrue();
     }
 
     [Fact(DisplayName = "Create copies enumerable cursor items into a read-only list")]
@@ -32,12 +32,12 @@ public sealed class CursorPaginationResultTests
 
         var result = CursorPaginationResult<int>.Create(items, limit: 10);
 
-        result.Items.Should().Equal(1, 2);
-        result.Items.Should().BeAssignableTo<IReadOnlyList<int>>();
-        result.NextCursor.Should().BeNull();
-        result.PreviousCursor.Should().BeNull();
-        result.HasNextPage.Should().BeFalse();
-        result.HasPreviousPage.Should().BeFalse();
+        result.Items.ShouldBe(new[] { 1, 2 });
+        result.Items.ShouldBeAssignableTo<IReadOnlyList<int>>();
+        result.NextCursor.ShouldBeNull();
+        result.PreviousCursor.ShouldBeNull();
+        result.HasNextPage.ShouldBeFalse();
+        result.HasPreviousPage.ShouldBeFalse();
     }
 
     [Fact(DisplayName = "Empty returns an empty cursor result")]
@@ -45,12 +45,12 @@ public sealed class CursorPaginationResultTests
     {
         var result = CursorPaginationResult<string>.Empty(limit: 25);
 
-        result.Items.Should().BeEmpty();
-        result.Limit.Should().Be(25);
-        result.NextCursor.Should().BeNull();
-        result.PreviousCursor.Should().BeNull();
-        result.HasNextPage.Should().BeFalse();
-        result.HasPreviousPage.Should().BeFalse();
+        result.Items.ShouldBeEmpty();
+        result.Limit.ShouldBe(25);
+        result.NextCursor.ShouldBeNull();
+        result.PreviousCursor.ShouldBeNull();
+        result.HasNextPage.ShouldBeFalse();
+        result.HasPreviousPage.ShouldBeFalse();
     }
 
     [Fact(DisplayName = "Create throws when cursor items are null")]
@@ -58,9 +58,9 @@ public sealed class CursorPaginationResultTests
     {
         Action act = () => CursorPaginationResult<int>.Create(items: null!, limit: 10);
 
-        act.Should()
-            .Throw<ArgumentNullException>()
-            .WithParameterName("items");
+        var exception = Should.Throw<ArgumentNullException>(act);
+
+        exception.ParamName.ShouldBe("items");
     }
 
     [Fact(DisplayName = "Create throws when cursor limit is not positive")]
@@ -68,9 +68,9 @@ public sealed class CursorPaginationResultTests
     {
         Action act = () => CursorPaginationResult<int>.Create(items: [], limit: 0);
 
-        act.Should()
-            .Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("limit")
-            .WithMessage("*Лимит должен быть больше 0.*");
+        var exception = Should.Throw<ArgumentOutOfRangeException>(act);
+
+        exception.ParamName.ShouldBe("limit");
+        exception.Message.ShouldContain("Лимит должен быть больше 0.");
     }
 }

@@ -23,7 +23,8 @@ The goal is to keep package structure, CI, versioning, tests, documentation, and
 - Central package management enabled
 - Microsoft Testing Platform
 - xUnit v3
-- FluentAssertions
+- Shouldly
+- FluentValidation
 - Nerdbank.GitVersioning
 
 ## Coding rules
@@ -50,7 +51,7 @@ The goal is to keep package structure, CI, versioning, tests, documentation, and
 - Cover happy path, guard clauses, and failure scenarios.
 - Verify public API behavior, not implementation details, unless required.
 - When fixing a bug, add a regression test first.
-- Do not add `using Xunit;` or `using FluentAssertions;` in test files, because they are provided as global usings in the test project.
+- Do not add `using Xunit;` or `using Shouldly;` in test files, because they are provided as global usings in the test project.
 - Write `DisplayName` values in English.
 - Structure tests using the Arrange, Act, Assert pattern.
 

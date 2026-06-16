@@ -11,9 +11,9 @@ public sealed class CursorPaginationParametersTests
     {
         var parameters = CursorPaginationParameters.FirstPage(limit: 50);
 
-        parameters.Cursor.Should().BeNull();
-        parameters.Limit.Should().Be(50);
-        parameters.Direction.Should().Be(CursorDirection.Forward);
+        parameters.Cursor.ShouldBeNull();
+        parameters.Limit.ShouldBe(50);
+        parameters.Direction.ShouldBe(CursorDirection.Forward);
     }
 
     [Fact(DisplayName = "Constructor stores cursor pagination values")]
@@ -24,9 +24,9 @@ public sealed class CursorPaginationParametersTests
             Limit: 10,
             Direction: CursorDirection.Backward);
 
-        parameters.Cursor.Should().Be("cursor-1");
-        parameters.Limit.Should().Be(10);
-        parameters.Direction.Should().Be(CursorDirection.Backward);
+        parameters.Cursor.ShouldBe("cursor-1");
+        parameters.Limit.ShouldBe(10);
+        parameters.Direction.ShouldBe(CursorDirection.Backward);
     }
 
     [Fact(DisplayName = "With expression copies and updates cursor pagination parameters")]
@@ -41,9 +41,9 @@ public sealed class CursorPaginationParametersTests
             Direction = CursorDirection.Backward
         };
 
-        updated.Cursor.Should().Be("cursor-2");
-        updated.Limit.Should().Be(20);
-        updated.Direction.Should().Be(CursorDirection.Backward);
+        updated.Cursor.ShouldBe("cursor-2");
+        updated.Limit.ShouldBe(20);
+        updated.Direction.ShouldBe(CursorDirection.Backward);
     }
 
     [Theory(DisplayName = "CursorDirection has localized display names")]
@@ -56,7 +56,7 @@ public sealed class CursorPaginationParametersTests
         var member = typeof(CursorDirection).GetMember(direction.ToString()).Single();
         var displayAttribute = member.GetCustomAttribute<DisplayAttribute>();
 
-        displayAttribute.Should().NotBeNull();
-        displayAttribute!.Name.Should().Be(expectedDisplayName);
+        displayAttribute.ShouldNotBeNull();
+        displayAttribute.Name.ShouldBe(expectedDisplayName);
     }
 }

@@ -16,8 +16,8 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 - CQRS request contracts: `ICommand<TResult>`, `IQuery<TResult>`, and `IRequest<TResult>`.
 - Mediator contracts for command/query dispatch and handler implementation.
-- Pipeline behavior contracts for before, after, and finally request stages.
-- Built-in behaviors for transaction start, save, commit, cleanup, and domain event publishing.
+- Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
+- Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, repository, and aggregate tracker abstractions for DDD persistence boundaries.
 - Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
@@ -31,7 +31,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="1.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="2.0.0" />
 </ItemGroup>
 ```
 
@@ -105,10 +105,10 @@ var result = CursorPaginationResult<string>.Create(
 
 ## Request Behaviors
 
-The package includes reusable mediator behavior implementations for command transaction orchestration and domain event publication:
+The package includes reusable mediator behavior implementations for request validation, command transaction orchestration, and domain event publication:
 
+- `ValidationBehavior<TRequest, TResult>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
 - `BeginTransactionBehavior<TCommand, TResult>` starts a transaction before a command handler runs.
-- `SaveChangesBehavior<TCommand, TResult>` persists changes after a successful command result when a transaction is active.
 - `PublishDomainEventsBehavior<TRequest, TResult>` publishes domain events collected from tracked aggregate roots after a successful request result and clears tracked events after a failed result or completed successful publication.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
@@ -116,15 +116,17 @@ The package includes reusable mediator behavior implementations for command tran
 A consuming mediator implementation should register these behaviors in a deterministic order. A typical command pipeline is:
 
 ```text
+before:  ValidationBehavior
 before:  BeginTransactionBehavior
 handler: ICommandHandler<TCommand, TResult>
-after:   SaveChangesBehavior
 after:   PublishDomainEventsBehavior
 after:   CommitTransactionBehavior
 finally: CleanupTransactionBehavior
 ```
 
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
+A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
+When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
 
 ## API Overview
 
@@ -133,7 +135,7 @@ The exact registration mechanism depends on the mediator or composition root use
 - `IMediator` dispatches commands and queries.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
-- `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and is defined in the mediator behavior abstractions namespace.
+- `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
 

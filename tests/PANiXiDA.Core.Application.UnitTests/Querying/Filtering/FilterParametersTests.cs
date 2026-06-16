@@ -9,7 +9,7 @@ public sealed class FilterParametersTests
     {
         FilterParameters parameters = new TestFilterParameters("active");
 
-        parameters.Should().BeOfType<TestFilterParameters>();
+        parameters.ShouldBeOfType<TestFilterParameters>();
     }
 
     [Fact(DisplayName = "With expression copies filter parameters")]
@@ -22,7 +22,7 @@ public sealed class FilterParametersTests
             Status = "inactive"
         };
 
-        updated.Status.Should().Be("inactive");
+        updated.Status.ShouldBe("inactive");
     }
 
     private sealed record TestFilterParameters(string Status) : FilterParameters;

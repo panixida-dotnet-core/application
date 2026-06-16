@@ -4,9 +4,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="FluentAssertions" />
+        <PackageReference Include="FluentValidation" />
         <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
         <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+        <PackageReference Include="Shouldly" />
         <PackageReference Include="xunit.v3" />
     </ItemGroup>
 
@@ -16,6 +17,6 @@
 
     <ItemGroup>
         <Using Include="Xunit" />
-        <Using Include="FluentAssertions" />
+        <Using Include="Shouldly" />
     </ItemGroup>
 </Project>

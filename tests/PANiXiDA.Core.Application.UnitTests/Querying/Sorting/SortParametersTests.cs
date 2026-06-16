@@ -11,8 +11,8 @@ public sealed class SortParametersTests
     {
         var parameters = SortParameters.Default();
 
-        parameters.Field.Should().BeNull();
-        parameters.Order.Should().Be(SortOrder.Ascending);
+        parameters.Field.ShouldBeNull();
+        parameters.Order.ShouldBe(SortOrder.Ascending);
     }
 
     [Fact(DisplayName = "Constructor stores sorting values")]
@@ -20,8 +20,8 @@ public sealed class SortParametersTests
     {
         var parameters = new SortParameters(Field: "name", Order: SortOrder.Descending);
 
-        parameters.Field.Should().Be("name");
-        parameters.Order.Should().Be(SortOrder.Descending);
+        parameters.Field.ShouldBe("name");
+        parameters.Order.ShouldBe(SortOrder.Descending);
     }
 
     [Fact(DisplayName = "With expression copies and updates sorting parameters")]
@@ -35,8 +35,8 @@ public sealed class SortParametersTests
             Order = SortOrder.Descending
         };
 
-        updated.Field.Should().Be("createdAt");
-        updated.Order.Should().Be(SortOrder.Descending);
+        updated.Field.ShouldBe("createdAt");
+        updated.Order.ShouldBe(SortOrder.Descending);
     }
 
     [Theory(DisplayName = "SortOrder has localized display names")]
@@ -49,7 +49,7 @@ public sealed class SortParametersTests
         var member = typeof(SortOrder).GetMember(sortOrder.ToString()).Single();
         var displayAttribute = member.GetCustomAttribute<DisplayAttribute>();
 
-        displayAttribute.Should().NotBeNull();
-        displayAttribute!.Name.Should().Be(expectedDisplayName);
+        displayAttribute.ShouldNotBeNull();
+        displayAttribute.Name.ShouldBe(expectedDisplayName);
     }
 }
