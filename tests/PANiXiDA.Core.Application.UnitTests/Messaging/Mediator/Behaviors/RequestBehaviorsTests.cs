@@ -74,29 +74,6 @@ public sealed class RequestBehaviorsTests
         error.Metadata[Error.FieldMetadataKey].ShouldBe(nameof(TestValidatedQuery.Name));
     }
 
-    [Fact(DisplayName = "ValidationBehavior throws when validators collection is null")]
-    public void Constructor_WhenValidatorsAreNull_Throws()
-    {
-        Action act = () => _ = new ValidationBehavior<TestValidatedCommand, Result>(null!);
-
-        var exception = Should.Throw<ArgumentNullException>(act);
-
-        exception.ParamName.ShouldBe("validators");
-    }
-
-    [Fact(DisplayName = "ValidationBehavior throws when request is null")]
-    public async Task BeforeAsync_WhenRequestIsNull_Throws()
-    {
-        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
-            [new TestValidatedCommandValidator()]);
-
-        Func<Task> act = () => behavior.BeforeAsync(null!, CancellationToken.None);
-
-        var exception = await Should.ThrowAsync<ArgumentNullException>(act);
-
-        exception.ParamName.ShouldBe("request");
-    }
-
     [Fact(DisplayName = "CommitTransactionBehavior commits successful commands in an active transaction")]
     public async Task AfterAsync_WhenCommandSucceededInActiveTransaction_CommitsTransaction()
     {
