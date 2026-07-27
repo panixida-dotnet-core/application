@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, unit-of-work orchestration, repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -20,7 +20,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - FluentValidation extension for converting failed domain factory `Result<T>` values into property validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
-- Unit of work, repository, and aggregate tracker abstractions for DDD persistence boundaries.
+- Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
 
 ## Requirements
@@ -164,6 +164,18 @@ public sealed record Email(string Value)
 }
 ```
 
+## Repository Abstraction Ownership
+
+Repository contracts are split by architectural responsibility:
+
+| Contract | Package | Namespace | Responsibility |
+| --- | --- | --- | --- |
+| `IReadRepository<TId>` | `PANiXiDA.Core.Application` | `PANiXiDA.Core.Application.Persistence` | Read-side existence checks used by application queries and validation. |
+| `IRepository<TId, TAggregateRoot>` | [`PANiXiDA.Core.Domain`](https://github.com/panixida-dotnet-core/domain#repository-abstraction-ownership) | `PANiXiDA.Core.Domain.Abstractions` | Loading and persisting aggregate roots through the domain boundary. |
+
+`IReadRepository<TId>` provides `ExistsByIdAsync` and `AnyAsync`.
+The aggregate repository contract is intentionally not defined by this package; reference `PANiXiDA.Core.Domain` when a repository works with aggregate roots.
+
 ## API Overview
 
 ### Messaging
@@ -188,8 +200,8 @@ public sealed record Email(string Value)
 ### Persistence
 
 - `IUnitOfWork` defines persistence and transaction operations.
-- `IRepository<TId, TAggregateRoot>` defines basic aggregate persistence operations.
-- `IReadRepository<TId>` defines read-only existence checks.
+- `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
+- Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
 
 ### Querying Models
 
