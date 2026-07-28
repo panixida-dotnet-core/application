@@ -194,7 +194,7 @@ public sealed class RequestBehaviorsTests
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
-        var aggregateRoot = new TestAggregateRoot(Guid.NewGuid());
+        var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
         var firstEvent = new TestDomainEvent();
         var secondEvent = new TestDomainEvent();
         aggregateRoot.Raise(firstEvent);
@@ -216,7 +216,7 @@ public sealed class RequestBehaviorsTests
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
-        var aggregateRoot = new TestAggregateRoot(Guid.NewGuid());
+        var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
         aggregateRoot.Raise(new TestDomainEvent());
         aggregateTracker.Track(aggregateRoot);
 
@@ -238,7 +238,7 @@ public sealed class RequestBehaviorsTests
             Exception = new InvalidOperationException("Publish failed.")
         };
         var aggregateTracker = new TestAggregateTracker();
-        var aggregateRoot = new TestAggregateRoot(Guid.NewGuid());
+        var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
         aggregateRoot.Raise(new TestDomainEvent());
         aggregateTracker.Track(aggregateRoot);
 
