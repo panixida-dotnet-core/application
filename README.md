@@ -21,6 +21,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - FluentValidation extension for converting failed domain factory `Result<T>` values into property validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- `ReadModel` base type for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
 
 ## Requirements
@@ -63,20 +64,31 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
 ```csharp
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
+using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.ResultPattern;
 
-public sealed record GetNameQuery(Guid Id) : IQuery<Result<string>>;
+public sealed record NameReadModel(Guid Id, string Name) : ReadModel;
 
-public sealed class GetNameQueryHandler : IQueryHandler<GetNameQuery, Result<string>>
+public sealed record GetNameQuery(Guid Id) : IQuery<Result<NameReadModel>>;
+
+public sealed class GetNameQueryHandler
+    : IQueryHandler<GetNameQuery, Result<NameReadModel>>
 {
-    public Task<Result<string>> HandleAsync(
+    public Task<Result<NameReadModel>> HandleAsync(
         GetNameQuery query,
         CancellationToken cancellationToken)
     {
-        return Task.FromResult(Result.Success("PANiXiDA"));
+        var readModel = new NameReadModel(query.Id, "PANiXiDA");
+
+        return Task.FromResult(Result.Success(readModel));
     }
 }
 ```
+
+Query result payloads should derive from `ReadModel`. Collections, pagination
+models, and result wrappers may contain read models, but domain entities,
+aggregate roots, value objects, enumerations, and strongly typed identifiers
+must not cross the read-side boundary.
 
 ### Page-Based Query Result
 
@@ -174,6 +186,11 @@ Repository contracts are split by architectural responsibility:
 | `IRepository<TId, TAggregateRoot>` | [`PANiXiDA.Core.Domain`](https://github.com/panixida-dotnet-core/domain#repository-abstraction-ownership) | `PANiXiDA.Core.Domain.Abstractions` | Loading and persisting aggregate roots through the domain boundary. |
 
 `IReadRepository<TId>` provides `ExistsByIdAsync` and `AnyAsync`.
+Its identifier should be a primitive read-side value such as `Guid`.
+Additional read repository methods may accept primitive values or application
+parameter models composed exclusively from primitive values, and should return
+`ReadModel` payloads, optionally wrapped in collections or pagination models.
+Read repository contracts must not use types from the Domain layer.
 The aggregate repository contract is intentionally not defined by this package; reference `PANiXiDA.Core.Domain` when a repository works with aggregate roots.
 
 ## API Overview
@@ -183,6 +200,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IMediator` dispatches commands and queries.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
+- `ReadModel` is the base type for query and read repository result payloads.
 - `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
@@ -205,6 +223,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Querying Models
 
+- `ReadModel` identifies immutable read-side result models.
 - `PaginationParameters` calculates `Skip` and `Take` for page-based reads.
 - `PaginationResult<TItem>` returns page metadata and items.
 - `CursorPaginationParameters` represents cursor pagination input.
