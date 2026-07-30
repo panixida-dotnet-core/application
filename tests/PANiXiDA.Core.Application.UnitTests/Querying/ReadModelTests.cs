@@ -12,5 +12,19 @@ public sealed class ReadModelTests
         readModel.ShouldBeOfType<TestReadModel>();
     }
 
+    [Fact(DisplayName = "With expression copies the derived read model")]
+    public void WithExpression_WhenReadModelIsCopied_ReturnsDerivedCopy()
+    {
+        var readModel = new TestReadModel(Guid.NewGuid());
+        var updatedId = Guid.NewGuid();
+
+        var result = readModel with
+        {
+            Id = updatedId
+        };
+
+        result.Id.ShouldBe(updatedId);
+    }
+
     private sealed record TestReadModel(Guid Id) : ReadModel;
 }
