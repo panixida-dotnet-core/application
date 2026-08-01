@@ -18,7 +18,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Mediator contracts for command/query dispatch and handler implementation.
 - Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
-- FluentValidation extension for converting failed domain factory `Result<T>` values into property validation failures.
+- FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `ReadModel` base type for immutable read-side result models.
@@ -176,6 +176,53 @@ public sealed record Email(string Value)
 }
 ```
 
+`MustBeValidDomainResult` validates several request values with one domain factory and uses each error's
+`Error.FieldMetadataKey` value as the FluentValidation property path. Errors without field metadata fall back
+to the current rule path.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Validation;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record CreateDamageRangeCommand(
+    int MinimumDamage,
+    int MaximumDamage);
+
+public sealed class CreateDamageRangeCommandValidator
+    : AbstractValidator<CreateDamageRangeCommand>
+{
+    public CreateDamageRangeCommandValidator()
+    {
+        RuleFor(command => command)
+            .MustBeValidDomainResult(command => DamageRange.Create(
+                command.MinimumDamage,
+                command.MaximumDamage));
+    }
+}
+
+public sealed record DamageRange(
+    int MinimumDamage,
+    int MaximumDamage)
+{
+    public static Result<DamageRange> Create(
+        int minimumDamage,
+        int maximumDamage)
+    {
+        if (maximumDamage < minimumDamage)
+        {
+            return Result.Failure<DamageRange>(
+                Error.Validation(
+                        "Maximum damage cannot be less than minimum damage.")
+                    .WithField(nameof(MaximumDamage)));
+        }
+
+        return Result.Success(
+            new DamageRange(minimumDamage, maximumDamage));
+    }
+}
+```
+
 ## Repository Abstraction Ownership
 
 Repository contracts are split by architectural responsibility:
@@ -208,6 +255,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Validation
 
 - `MustBeValidDomainValue` validates a property through a domain factory that returns `Result<T>` and maps failed result errors to FluentValidation failures.
+- `MustBeValidDomainResult` validates a property or request through a domain factory and maps error field metadata to FluentValidation property paths.
 
 ### Domain Events
 
