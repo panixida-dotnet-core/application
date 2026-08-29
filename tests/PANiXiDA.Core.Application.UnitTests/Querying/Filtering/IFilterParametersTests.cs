@@ -2,12 +2,12 @@ using PANiXiDA.Core.Application.Querying.Filtering;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying.Filtering;
 
-public sealed class FilterParametersTests
+public sealed class IFilterParametersTests
 {
-    [Fact(DisplayName = "FilterParameters can be used as a read filter base type")]
-    public void FilterParameters_WhenDerived_CanBeUsedAsBaseType()
+    [Fact(DisplayName = "IFilterParameters can identify a read filter record")]
+    public void IFilterParameters_WhenImplementedByRecord_IdentifiesReadFilter()
     {
-        FilterParameters parameters = new TestFilterParameters("active");
+        IFilterParameters parameters = new TestFilterParameters("active");
 
         parameters.ShouldBeOfType<TestFilterParameters>();
     }
@@ -25,5 +25,5 @@ public sealed class FilterParametersTests
         updated.Status.ShouldBe("inactive");
     }
 
-    private sealed record TestFilterParameters(string Status) : FilterParameters;
+    private sealed record TestFilterParameters(string Status) : IFilterParameters;
 }
