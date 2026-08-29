@@ -2,12 +2,12 @@ using PANiXiDA.Core.Application.Querying;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying;
 
-public sealed class ReadModelTests
+public sealed class IReadModelTests
 {
-    [Fact(DisplayName = "ReadModel can be used as a read result base type")]
-    public void ReadModel_WhenDerived_CanBeUsedAsBaseType()
+    [Fact(DisplayName = "IReadModel can identify a read result record")]
+    public void IReadModel_WhenImplementedByRecord_IdentifiesReadResult()
     {
-        ReadModel readModel = new TestReadModel(Guid.NewGuid());
+        IReadModel readModel = new TestReadModel(Guid.NewGuid());
 
         readModel.ShouldBeOfType<TestReadModel>();
     }
@@ -26,5 +26,5 @@ public sealed class ReadModelTests
         result.Id.ShouldBe(updatedId);
     }
 
-    private sealed record TestReadModel(Guid Id) : ReadModel;
+    private sealed record TestReadModel(Guid Id) : IReadModel;
 }

@@ -21,7 +21,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
-- `ReadModel` base type for immutable read-side result models.
+- `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
 
 ## Requirements
@@ -33,7 +33,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="2.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="3.0.0" />
 </ItemGroup>
 ```
 
@@ -67,7 +67,7 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.ResultPattern;
 
-public sealed record NameReadModel(Guid Id, string Name) : ReadModel;
+public sealed record NameReadModel(Guid Id, string Name) : IReadModel;
 
 public sealed record GetNameQuery(Guid Id) : IQuery<Result<NameReadModel>>;
 
@@ -85,10 +85,14 @@ public sealed class GetNameQueryHandler
 }
 ```
 
-Query result payloads should derive from `ReadModel`. Collections, pagination
+Query result payloads should implement `IReadModel`. Collections, pagination
 models, and result wrappers may contain read models, but domain entities,
 aggregate roots, value objects, enumerations, and strongly typed identifiers
 must not cross the read-side boundary.
+
+Concrete read models and custom filter parameters should be declared as records.
+Because marker interfaces cannot enforce the declaration kind, consuming
+applications should protect this convention with architecture tests.
 
 ### Page-Based Query Result
 
@@ -236,7 +240,7 @@ Repository contracts are split by architectural responsibility:
 Its identifier should be a primitive read-side value such as `Guid`.
 Additional read repository methods may accept primitive values or application
 parameter models composed exclusively from primitive values, and should return
-`ReadModel` payloads, optionally wrapped in collections or pagination models.
+`IReadModel` payloads, optionally wrapped in collections or pagination models.
 Read repository contracts must not use types from the Domain layer.
 The aggregate repository contract is intentionally not defined by this package; reference `PANiXiDA.Core.Domain` when a repository works with aggregate roots.
 
@@ -247,7 +251,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IMediator` dispatches commands and queries.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
-- `ReadModel` is the base type for query and read repository result payloads.
+- `IReadModel` identifies query and read repository result payloads.
 - `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
@@ -271,13 +275,13 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Querying Models
 
-- `ReadModel` identifies immutable read-side result models.
+- `IReadModel` identifies immutable read-side result models.
 - `PaginationParameters` calculates `Skip` and `Take` for page-based reads.
 - `PaginationResult<TItem>` returns page metadata and items.
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortParameters` and `SortOrder` represent read sorting options.
-- `FilterParameters` is the base type for custom read filter records.
+- `IFilterParameters` identifies custom read filter records.
 
 ## Configuration
 
