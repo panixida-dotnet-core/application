@@ -4,6 +4,8 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Pagination;
 
 public sealed class PaginationResultTests
 {
+    private static readonly int[] ExpectedItems = [1, 2];
+
     [Fact(DisplayName = "Create returns calculated page metadata")]
     public void Create_WhenParametersAreValid_ReturnsCalculatedMetadata()
     {
@@ -35,7 +37,7 @@ public sealed class PaginationResultTests
             pageSize: 10,
             totalCount: 2);
 
-        result.Items.ShouldBe(new[] { 1, 2 });
+        result.Items.ShouldBe(ExpectedItems);
         result.Items.ShouldBeAssignableTo<IReadOnlyList<int>>();
         result.HasPreviousPage.ShouldBeFalse();
         result.HasNextPage.ShouldBeFalse();
@@ -58,7 +60,7 @@ public sealed class PaginationResultTests
     [Fact(DisplayName = "Create throws when items are null")]
     public void Create_WhenItemsAreNull_Throws()
     {
-        Action act = () => PaginationResult<int>.Create(
+        static void act() => PaginationResult<int>.Create(
             items: null!,
             pageNumber: 1,
             pageSize: 10,
@@ -72,7 +74,7 @@ public sealed class PaginationResultTests
     [Fact(DisplayName = "Create throws when page number is not positive")]
     public void Create_WhenPageNumberIsNotPositive_Throws()
     {
-        Action act = () => PaginationResult<int>.Create(
+        static void act() => PaginationResult<int>.Create(
             items: [],
             pageNumber: 0,
             pageSize: 10,
@@ -87,7 +89,7 @@ public sealed class PaginationResultTests
     [Fact(DisplayName = "Create throws when page size is not positive")]
     public void Create_WhenPageSizeIsNotPositive_Throws()
     {
-        Action act = () => PaginationResult<int>.Create(
+        static void act() => PaginationResult<int>.Create(
             items: [],
             pageNumber: 1,
             pageSize: 0,
@@ -102,7 +104,7 @@ public sealed class PaginationResultTests
     [Fact(DisplayName = "Create throws when total count is negative")]
     public void Create_WhenTotalCountIsNegative_Throws()
     {
-        Action act = () => PaginationResult<int>.Create(
+        static void act() => PaginationResult<int>.Create(
             items: [],
             pageNumber: 1,
             pageSize: 10,

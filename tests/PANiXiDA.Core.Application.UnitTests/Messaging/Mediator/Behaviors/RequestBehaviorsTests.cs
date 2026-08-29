@@ -244,7 +244,7 @@ public sealed class RequestBehaviorsTests
 
         var behavior = new PublishDomainEventsBehavior<TestRequest, Result>(eventBus, aggregateTracker);
 
-        Func<Task> act = () => behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
+        Task act() => behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(act);
 

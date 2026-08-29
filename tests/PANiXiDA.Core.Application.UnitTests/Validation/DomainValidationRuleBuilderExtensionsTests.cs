@@ -11,7 +11,7 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
     {
         IRuleBuilder<TestRequest, string> ruleBuilder = null!;
 
-        Action act = () => ruleBuilder.MustBeValidDomainValue(static value => TestDomainValue.Create(value));
+        void act() => ruleBuilder.MustBeValidDomainValue(static value => TestDomainValue.Create(value));
 
         var exception = Should.Throw<ArgumentNullException>(act);
 
@@ -24,7 +24,7 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
         var validator = new InlineValidator<TestRequest>();
         IRuleBuilderInitial<TestRequest, string> ruleBuilder = validator.RuleFor(request => request.Value);
 
-        Action act = () => ruleBuilder.MustBeValidDomainValue((Func<string, Result<TestDomainValue>>)null!);
+        void act() => ruleBuilder.MustBeValidDomainValue((Func<string, Result<TestDomainValue>>)null!);
 
         var exception = Should.Throw<ArgumentNullException>(act);
 
@@ -60,7 +60,7 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
     {
         IRuleBuilder<ComplexTestRequest, ComplexTestRequest> ruleBuilder = null!;
 
-        Action act = () => ruleBuilder.MustBeValidDomainResult(static request => TestDomainResult.Create(
+        void act() => ruleBuilder.MustBeValidDomainResult(static request => TestDomainResult.Create(
             request.FirstValue,
             request.SecondValue));
 
@@ -76,7 +76,7 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
         IRuleBuilderInitial<ComplexTestRequest, ComplexTestRequest> ruleBuilder =
             validator.RuleFor(request => request);
 
-        Action act = () => ruleBuilder.MustBeValidDomainResult(
+        void act() => ruleBuilder.MustBeValidDomainResult(
             (Func<ComplexTestRequest, Result<TestDomainResult>>)null!);
 
         var exception = Should.Throw<ArgumentNullException>(act);

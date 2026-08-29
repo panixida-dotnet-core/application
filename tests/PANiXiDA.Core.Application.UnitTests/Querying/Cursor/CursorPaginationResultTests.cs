@@ -4,6 +4,8 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Cursor;
 
 public sealed class CursorPaginationResultTests
 {
+    private static readonly int[] ExpectedItems = [1, 2];
+
     [Fact(DisplayName = "Create returns cursor page metadata")]
     public void Create_WhenParametersAreValid_ReturnsCursorMetadata()
     {
@@ -32,7 +34,7 @@ public sealed class CursorPaginationResultTests
 
         var result = CursorPaginationResult<int>.Create(items, limit: 10);
 
-        result.Items.ShouldBe(new[] { 1, 2 });
+        result.Items.ShouldBe(ExpectedItems);
         result.Items.ShouldBeAssignableTo<IReadOnlyList<int>>();
         result.NextCursor.ShouldBeNull();
         result.PreviousCursor.ShouldBeNull();
@@ -56,7 +58,7 @@ public sealed class CursorPaginationResultTests
     [Fact(DisplayName = "Create throws when cursor items are null")]
     public void Create_WhenItemsAreNull_Throws()
     {
-        Action act = () => CursorPaginationResult<int>.Create(items: null!, limit: 10);
+        static void act() => CursorPaginationResult<int>.Create(items: null!, limit: 10);
 
         var exception = Should.Throw<ArgumentNullException>(act);
 
@@ -66,7 +68,7 @@ public sealed class CursorPaginationResultTests
     [Fact(DisplayName = "Create throws when cursor limit is not positive")]
     public void Create_WhenLimitIsNotPositive_Throws()
     {
-        Action act = () => CursorPaginationResult<int>.Create(items: [], limit: 0);
+        static void act() => CursorPaginationResult<int>.Create(items: [], limit: 0);
 
         var exception = Should.Throw<ArgumentOutOfRangeException>(act);
 
