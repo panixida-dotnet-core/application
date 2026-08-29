@@ -33,7 +33,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="2.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="3.0.0" />
 </ItemGroup>
 ```
 
