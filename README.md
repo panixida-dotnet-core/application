@@ -22,7 +22,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
-- Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
+- Read-side helper models for page-based pagination, cursor pagination, sorting, filtering, and validated result limits.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="3.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="3.1.1" />
 </ItemGroup>
 ```
 
@@ -90,7 +90,7 @@ models, and result wrappers may contain read models, but domain entities,
 aggregate roots, value objects, enumerations, and strongly typed identifiers
 must not cross the read-side boundary.
 
-Concrete read models and custom filter parameters should be declared as records.
+Concrete read models and custom filters should be declared as records.
 Because marker interfaces cannot enforce the declaration kind, consuming
 applications should protect this convention with architecture tests.
 
@@ -119,6 +119,58 @@ var result = CursorPaginationResult<string>.Create(
     nextCursor: "cursor-2",
     hasNextPage: true);
 ```
+
+### Limited Queries
+
+`LimitParameters` carries the requested result count without pagination. Its validator
+accepts values from 1 through 200. Constructing the parameters preserves the supplied
+value; validation reports invalid input without clamping it.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying.Limiting;
+
+public sealed record GetOptionsQuery(LimitParameters Limit);
+
+public sealed class GetOptionsQueryValidator : AbstractValidator<GetOptionsQuery>
+{
+    public GetOptionsQueryValidator()
+    {
+        RuleFor(query => query.Limit)
+            .NotNull()
+            .SetValidator(new LimitParametersValidator());
+    }
+}
+```
+
+For example, `new GetOptionsQuery(new LimitParameters(20))` passes validation.
+Default limits belong to the consuming endpoint or use case.
+Use `NotNull()` alongside `SetValidator()` to reject missing parameters.
+
+### Pagination Validation
+
+`PaginationParametersValidator` requires a positive `PageNumber`, a `PageSize` from
+1 through 200, and an offset that fits in `Int32`. Compose it into the query validator:
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying.Pagination;
+
+public sealed record GetPageQuery(PaginationParameters Pagination);
+
+public sealed class GetPageQueryValidator : AbstractValidator<GetPageQuery>
+{
+    public GetPageQueryValidator()
+    {
+        RuleFor(query => query.Pagination)
+            .NotNull()
+            .SetValidator(new PaginationParametersValidator());
+    }
+}
+```
+
+Validation leaves the supplied parameters unchanged. Existing `Skip` and `Take`
+calculations keep their behavior; validate the parameters before using them in a query.
 
 ## Request Behaviors
 
@@ -281,7 +333,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortParameters` and `SortOrder` represent read sorting options.
-- `IFilterParameters` identifies custom read filter records.
+- `IFilter` identifies application query filter records.
 
 ## Configuration
 
