@@ -122,7 +122,7 @@ var result = CursorPaginationResult<string>.Create(
 
 ### Limited Queries
 
-`LimitParameters` carries the requested result count without pagination. Its validator
+`LimitParameters` carries the requested result count without pagination and defaults to 20. Its validator
 accepts values from 1 through 200. Constructing the parameters preserves the supplied
 value; validation reports invalid input without clamping it.
 
@@ -143,8 +143,8 @@ public sealed class GetOptionsQueryValidator : AbstractValidator<GetOptionsQuery
 }
 ```
 
-For example, `new GetOptionsQuery(new LimitParameters(20))` passes validation.
-Default limits belong to the consuming endpoint or use case.
+For example, `new GetOptionsQuery(new LimitParameters())` uses the default limit of 20
+and passes validation. An explicit limit overrides the default.
 Use `NotNull()` alongside `SetValidator()` to reject missing parameters.
 
 ### Pagination Validation
