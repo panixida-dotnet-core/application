@@ -90,7 +90,7 @@ models, and result wrappers may contain read models, but domain entities,
 aggregate roots, value objects, enumerations, and strongly typed identifiers
 must not cross the read-side boundary.
 
-Concrete read models and custom filter parameters should be declared as records.
+Concrete read models and custom filters should be declared as records.
 Because marker interfaces cannot enforce the declaration kind, consuming
 applications should protect this convention with architecture tests.
 
@@ -333,7 +333,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortParameters` and `SortOrder` represent read sorting options.
-- `IFilterParameters` identifies custom read filter records.
+- `IFilter` identifies application query filter records.
 
 ## Configuration
 
