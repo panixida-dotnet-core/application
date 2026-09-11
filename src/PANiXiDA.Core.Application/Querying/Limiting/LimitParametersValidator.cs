@@ -3,20 +3,16 @@ using FluentValidation;
 namespace PANiXiDA.Core.Application.Querying.Limiting;
 
 /// <summary>
-/// Validates that a requested limit is positive and does not exceed a use case's maximum.
+/// Validates that a requested limit is between 1 and 200.
 /// </summary>
 public sealed class LimitParametersValidator : AbstractValidator<LimitParameters>
 {
     /// <summary>
-    /// Initializes a validator with an inclusive upper bound.
+    /// Initializes a validator for limits from 1 through 200.
     /// </summary>
-    /// <param name="maxLimit">The positive maximum number of items allowed by the use case.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxLimit"/> is not positive.</exception>
-    public LimitParametersValidator(int maxLimit)
+    public LimitParametersValidator()
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLimit);
-
         RuleFor(parameters => parameters.Limit)
-            .InclusiveBetween(1, maxLimit);
+            .InclusiveBetween(1, 200);
     }
 }

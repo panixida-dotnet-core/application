@@ -123,8 +123,8 @@ var result = CursorPaginationResult<string>.Create(
 ### Limited Queries
 
 `LimitParameters` carries the requested result count without pagination. Its validator
-accepts values from 1 through the maximum chosen by the use case. Constructing the
-parameters preserves the supplied value; validation reports invalid input without clamping it.
+accepts values from 1 through 200. Constructing the parameters preserves the supplied
+value; validation reports invalid input without clamping it.
 
 ```csharp
 using FluentValidation;
@@ -138,15 +138,39 @@ public sealed class GetOptionsQueryValidator : AbstractValidator<GetOptionsQuery
     {
         RuleFor(query => query.Limit)
             .NotNull()
-            .SetValidator(new LimitParametersValidator(maxLimit: 100));
+            .SetValidator(new LimitParametersValidator());
     }
 }
 ```
 
 For example, `new GetOptionsQuery(new LimitParameters(20))` passes validation.
-Default limits belong to the consuming endpoint or use case. `maxLimit` must be
-positive; otherwise the validator constructor throws `ArgumentOutOfRangeException`.
+Default limits belong to the consuming endpoint or use case.
 Use `NotNull()` alongside `SetValidator()` to reject missing parameters.
+
+### Pagination Validation
+
+`PaginationParametersValidator` requires a positive `PageNumber`, a `PageSize` from
+1 through 200, and an offset that fits in `Int32`. Compose it into the query validator:
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying.Pagination;
+
+public sealed record GetPageQuery(PaginationParameters Pagination);
+
+public sealed class GetPageQueryValidator : AbstractValidator<GetPageQuery>
+{
+    public GetPageQueryValidator()
+    {
+        RuleFor(query => query.Pagination)
+            .NotNull()
+            .SetValidator(new PaginationParametersValidator());
+    }
+}
+```
+
+Validation leaves the supplied parameters unchanged. Existing `Skip` and `Take`
+calculations keep their behavior; validate the parameters before using them in a query.
 
 ## Request Behaviors
 
