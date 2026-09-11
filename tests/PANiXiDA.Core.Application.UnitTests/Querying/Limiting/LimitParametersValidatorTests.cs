@@ -49,8 +49,8 @@ public sealed class LimitParametersValidatorTests
         var result = validator.Validate(new OptionsQuery(new LimitParameters(limit)));
 
         result.IsValid.ShouldBe(isValid);
-        result.Errors.Select(failure => failure.PropertyName)
-            .ShouldBe(isValid ? [] : new[] { "Limit.Limit" });
+        result.Errors.Count.ShouldBe(isValid ? 0 : 1);
+        result.Errors.ShouldAllBe(failure => failure.PropertyName == "Limit.Limit");
     }
 
     [Fact(DisplayName = "Query validator rejects missing limit parameters")]
