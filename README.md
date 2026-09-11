@@ -22,7 +22,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
-- Read-side helper models for page-based pagination, cursor pagination, sorting, and filtering.
+- Read-side helper models for page-based pagination, cursor pagination, sorting, filtering, and validated result limits.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="3.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="3.1.1" />
 </ItemGroup>
 ```
 
@@ -119,6 +119,34 @@ var result = CursorPaginationResult<string>.Create(
     nextCursor: "cursor-2",
     hasNextPage: true);
 ```
+
+### Limited Queries
+
+`LimitParameters` carries the requested result count without pagination. Its validator
+accepts values from 1 through the maximum chosen by the use case. Constructing the
+parameters preserves the supplied value; validation reports invalid input without clamping it.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying.Limiting;
+
+public sealed record GetOptionsQuery(LimitParameters Limit);
+
+public sealed class GetOptionsQueryValidator : AbstractValidator<GetOptionsQuery>
+{
+    public GetOptionsQueryValidator()
+    {
+        RuleFor(query => query.Limit)
+            .NotNull()
+            .SetValidator(new LimitParametersValidator(maxLimit: 100));
+    }
+}
+```
+
+For example, `new GetOptionsQuery(new LimitParameters(20))` passes validation.
+Default limits belong to the consuming endpoint or use case. `maxLimit` must be
+positive; otherwise the validator constructor throws `ArgumentOutOfRangeException`.
+Use `NotNull()` alongside `SetValidator()` to reject missing parameters.
 
 ## Request Behaviors
 
