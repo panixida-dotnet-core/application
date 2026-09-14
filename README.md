@@ -484,7 +484,11 @@ dotnet restore
 
 ### Format
 
+Build once before formatting a fresh checkout so the formatter can load the
+source generator and resolve generated validators.
+
 ```bash
+dotnet build --no-restore
 dotnet format
 ```
 
