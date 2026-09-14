@@ -37,7 +37,7 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
         var models = context.SyntaxProvider.CreateSyntaxProvider(
             static (node, _) => node is TypeDeclarationSyntax,
             static (syntax, cancellationToken) => syntax.SemanticModel.GetDeclaredSymbol(syntax.Node, cancellationToken) as INamedTypeSymbol)
-            .Where(static model => model is { IsAbstract: false, TypeKind: TypeKind.Class or TypeKind.Struct }
+            .Where(static model => model is { IsAbstract: false }
                 && model.AllInterfaces.Any(contract => contract.ToDisplayString() == "PANiXiDA.Core.Application.Querying.IReadModel"));
 
         context.RegisterSourceOutput(models.Collect(), static (output, symbols) => Generate(output, symbols));
