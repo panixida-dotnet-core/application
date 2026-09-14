@@ -10,10 +10,12 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 
 public sealed class SortingParametersValidatorTests
 {
-    [Theory(DisplayName = "Validate accepts empty sorting and up to five distinct criteria")]
+    [Theory(DisplayName = "Validate accepts empty sorting and distinct criteria without a count limit")]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(10)]
     public void Validate_WhenCriteriaAreValid_Succeeds(int count)
     {
         var parameters = new SortingParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
@@ -23,6 +25,18 @@ public sealed class SortingParametersValidatorTests
 
         result.IsValid.ShouldBeTrue();
         parameters.Fields.Length.ShouldBe(count);
+    }
+
+    [Fact(DisplayName = "Generated read model validator accepts more than five supported fields")]
+    public void Validate_WhenReadModelSortingContainsMoreThanFiveFields_Succeeds()
+    {
+        string[] fields = ["name", "email", "createdAt", "isActive", "role", "department.name"];
+        var parameters = new SortingParameters(fields.Select(field => new SortField(field)).ToArray());
+        var validator = new SortingTestReadModelSortingValidator();
+
+        var result = validator.Validate(parameters);
+
+        result.IsValid.ShouldBeTrue();
     }
 
     [Theory(DisplayName = "Validate reports null criteria arrays through FluentValidation")]
@@ -106,36 +120,6 @@ public sealed class SortingParametersValidatorTests
         failure.ErrorMessage.ShouldBe("Sorting field 'DEPARTMENT.Name' must not occur more than once.");
     }
 
-    [Theory(DisplayName = "Validate respects the configured maximum number of criteria")]
-    [InlineData(5, 6, false)]
-    [InlineData(6, 6, true)]
-    [InlineData(1, 2, false)]
-    public void Validate_WhenMaximumIsConfigured_UsesIt(int maxFields, int count, bool isValid)
-    {
-        var validator = new SortingParametersValidator(maxFields);
-        var parameters = new SortingParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
-
-        var result = validator.Validate(parameters);
-
-        result.IsValid.ShouldBe(isValid);
-        if (!isValid)
-        {
-            var failure = result.Errors.ShouldHaveSingleItem();
-            failure.PropertyName.ShouldBe("Fields");
-            failure.ErrorMessage.ShouldBe($"Sorting must contain no more than {maxFields} fields.");
-        }
-    }
-
-    [Theory(DisplayName = "Validator rejects non-positive maximum values")]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_WhenMaximumIsInvalid_Throws(int maxFields)
-    {
-        var action = () => new SortingParametersValidator(maxFields);
-
-        action.ShouldThrow<ArgumentOutOfRangeException>().ParamName.ShouldBe(nameof(maxFields));
-    }
-
     [Theory(DisplayName = "Read model validator accepts only fields from its generated property paths ignoring case")]
     [InlineData("name", true)]
     [InlineData(nameof(SortingTestReadModel.Name), true)]
@@ -163,12 +147,12 @@ public sealed class SortingParametersValidatorTests
     [Fact(DisplayName = "Read model validator reports malformed paths once and retains structural rules")]
     public void Validate_WhenReadModelIsProvided_AppliesStructuralRules()
     {
-        var validator = new SortingTestReadModelSortingValidator(maxFields: 1);
+        var validator = new SortingTestReadModelSortingValidator();
         var parameters = SortingParameters.Of(new SortField("", (SortDirection)99), new SortField("name"));
 
         var result = validator.Validate(parameters);
 
-        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Fields", "Fields[0].Field", "Fields[0].Order"]);
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Fields[0].Field", "Fields[0].Order"]);
     }
 
     [Fact(DisplayName = "Read model validator requires a field set and accepts empty sorting")]
@@ -223,7 +207,13 @@ public sealed class SortingParametersValidatorTests
     }
 }
 
-internal sealed record SortingTestReadModel(string Name, SortingDepartment Department) : IReadModel;
+internal sealed record SortingTestReadModel(
+    string Name,
+    string Email,
+    DateTime CreatedAt,
+    bool IsActive,
+    string Role,
+    SortingDepartment Department) : IReadModel;
 
 internal sealed record SortingDepartment(string Name);
 

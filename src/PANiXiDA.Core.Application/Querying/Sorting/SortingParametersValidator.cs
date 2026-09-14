@@ -4,29 +4,16 @@ using FluentValidation.Results;
 namespace PANiXiDA.Core.Application.Querying.Sorting;
 
 /// <summary>
-/// Validates sorting paths, directions, duplicate fields, and the number of criteria.
+/// Validates sorting paths, directions, and duplicate fields.
 /// </summary>
 public class SortingParametersValidator : AbstractValidator<SortingParameters>
 {
     /// <summary>
-    /// The default maximum number of sorting criteria.
-    /// </summary>
-    public const int DefaultMaxFields = 5;
-
-    /// <summary>
     /// Creates a structural sorting validator. Empty sorting is valid.
     /// </summary>
-    /// <param name="maxFields">The positive maximum number of criteria.</param>
-    /// <exception cref="ArgumentOutOfRangeException">The maximum is not positive.</exception>
-    public SortingParametersValidator(int maxFields = DefaultMaxFields)
+    public SortingParametersValidator()
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFields);
-
-        RuleFor(parameters => parameters.Fields)
-            .Cascade(CascadeMode.Stop)
-            .NotNull()
-            .Must(fields => fields.Length <= maxFields)
-            .WithMessage($"Sorting must contain no more than {maxFields} fields.");
+        RuleFor(parameters => parameters.Fields).NotNull();
 
         RuleForEach(parameters => parameters.Fields).NotNull().ChildRules(field =>
         {
@@ -61,11 +48,9 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
     /// Creates a model-specific validator using field paths supplied by generated code.
     /// </summary>
     /// <param name="fields">The supported field paths, compared by the supplied set.</param>
-    /// <param name="maxFields">The positive maximum number of criteria.</param>
     /// <exception cref="ArgumentNullException">The field set is null.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">The maximum is not positive.</exception>
-    protected SortingParametersValidator(IReadOnlySet<string> fields, int maxFields = DefaultMaxFields)
-        : this(maxFields)
+    protected SortingParametersValidator(IReadOnlySet<string> fields)
+        : this()
     {
         ArgumentNullException.ThrowIfNull(fields);
 

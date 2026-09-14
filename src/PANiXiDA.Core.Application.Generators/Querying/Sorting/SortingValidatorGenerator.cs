@@ -102,10 +102,8 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
             source.AppendLine("        }, global::System.StringComparer.OrdinalIgnoreCase);")
                 .AppendLine()
                 .AppendLine("    /// <summary>Creates a sorting validator for this read model.</summary>")
-                .AppendLine("    /// <param name=\"maxFields\">The positive maximum number of sorting criteria.</param>")
-                .AppendLine("    /// <exception cref=\"global::System.ArgumentOutOfRangeException\">The maximum is not positive.</exception>")
-                .Append("    public ").Append(name).AppendLine("(int maxFields = DefaultMaxFields)")
-                .AppendLine("        : base(SupportedFields, maxFields)")
+                .Append("    public ").Append(name).AppendLine("()")
+                .AppendLine("        : base(SupportedFields)")
                 .AppendLine("    {")
                 .AppendLine("    }")
                 .AppendLine("}");

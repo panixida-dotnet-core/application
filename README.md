@@ -195,9 +195,8 @@ This produces `department.name` descending, `name` ascending, then `createdAt`
 descending. Explicit fields keep their position and direction; defaults with the
 same field path are skipped using ordinal case-insensitive comparison. Missing
 default fields are appended in their original order. Both inputs stay unchanged.
-Validate both inputs before merging; if the total criterion limit also applies to
-the merged sorting, validate the merged result as well. Invalid criteria are not
-silently repaired by validation.
+Validate both inputs before merging. Invalid criteria are not silently repaired
+by validation.
 
 `SortingParameters.None`, `SortingParameters.Default()`, and `SortingParameters.Of()` all
 represent empty sorting. Use `Ascending(field)` or `Descending(field)` for one
@@ -231,9 +230,8 @@ metadata, and OpenAPI transformations belong to the HTTP adapter.
 ### Sorting Validation
 
 `SortingParametersValidator` rejects null arrays and null criteria and validates
-path syntax, directions, case-insensitive
-duplicate paths, and a maximum of five criteria by default. Empty sorting is valid.
-Use the `maxFields` constructor argument to choose another positive limit.
+path syntax, directions, and case-insensitive duplicate paths. Empty sorting is
+valid, and the number of criteria is unrestricted.
 
 The package includes a source generator. Every concrete source-declared `IReadModel`
 automatically receives a `<ReadModelName>SortingValidator` in the model's namespace.
@@ -263,9 +261,8 @@ public sealed class GetUsersQueryValidator : AbstractValidator<GetUsersQuery>
 }
 ```
 
-`new UserReadModelSortingValidator(maxFields: 10)` changes the limit. The generated
-validator can also be supplied through constructor injection like any other
-FluentValidation validator. Register the query validator with the application's
+The generated validator can also be supplied through constructor injection like any
+other FluentValidation validator. Register the query validator with the application's
 existing validation pipeline; the generator does not register services or infer
 which read model a query returns.
 
@@ -466,7 +463,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortingParameters` is a positional record with a `SortField[]`, a `SortDirection` per field, and optional default merging.
-- `SortingParametersValidator` validates criterion structure, duplicates, and count.
+- `SortingParametersValidator` validates criterion structure and duplicates.
 - Generated `<ReadModelName>SortingValidator` classes validate supported CLR paths discovered from `IReadModel` at compile time.
 - `IFilter` identifies application query filter records.
 
