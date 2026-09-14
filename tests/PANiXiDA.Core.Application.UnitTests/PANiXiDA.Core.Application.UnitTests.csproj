@@ -5,6 +5,7 @@
 
     <ItemGroup>
         <PackageReference Include="FluentValidation" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
         <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
         <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
         <PackageReference Include="Shouldly" />
@@ -13,6 +14,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\PANiXiDA.Core.Application\PANiXiDA.Core.Application.csproj" />
+        <ProjectReference Include="../../src/PANiXiDA.Core.Application.Generators/PANiXiDA.Core.Application.Generators.csproj"
+                          OutputItemType="Analyzer" />
     </ItemGroup>
 
     <ItemGroup>

@@ -16,6 +16,7 @@
     <File Path="version.json" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/PANiXiDA.Core.Application.Generators/PANiXiDA.Core.Application.Generators.csproj" />
     <Project Path="src/PANiXiDA.Core.Application/PANiXiDA.Core.Application.csproj" />
   </Folder>
   <Folder Name="/tests/">

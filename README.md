@@ -235,38 +235,69 @@ path syntax, directions, case-insensitive
 duplicate paths, and a maximum of five criteria by default. Empty sorting is valid.
 Use the `maxFields` constructor argument to choose another positive limit.
 
-`SortingParametersValidator<TReadModel>` additionally checks that every path belongs
-to a `SortDefinition<TReadModel>`. A definition is an immutable, case-insensitive
-set of public field paths and performs no runtime property discovery. It rejects
-malformed paths and name collisions at construction time. The composition root
-supplies the definition to the typed validator. Automatic generation of field
-definitions and their registration are not part of this package.
+The package includes a source generator. Every concrete source-declared `IReadModel`
+automatically receives a `<ReadModelName>SortingValidator` in the model's namespace.
+No attributes, manual field lists, or runtime property reflection are needed.
+The generated class supplies a static, case-insensitive set of paths to the common
+`SortingParametersValidator`; validation rules remain in the library.
 
-Compose the typed validator into the existing request validation pipeline:
+Compose the generated validator into the query validator:
 
 ```csharp
 using FluentValidation;
 using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.Application.Querying.Sorting;
 
-public sealed record UserReadModel(string Name) : IReadModel;
+public sealed record DepartmentReadModel(string Name);
+public sealed record UserReadModel(string Name, DepartmentReadModel? Department) : IReadModel;
 public sealed record GetUsersQuery(SortingParameters Sorting);
 
 public sealed class GetUsersQueryValidator : AbstractValidator<GetUsersQuery>
 {
-    public GetUsersQueryValidator(SortingParametersValidator<UserReadModel> sortingValidator)
+    public GetUsersQueryValidator()
     {
         RuleFor(query => query.Sorting)
             .NotNull()
-            .SetValidator(sortingValidator);
+            .SetValidator(new UserReadModelSortingValidator());
     }
 }
 ```
 
+`new UserReadModelSortingValidator(maxFields: 10)` changes the limit. The generated
+validator can also be supplied through constructor injection like any other
+FluentValidation validator. Register the query validator with the application's
+existing validation pipeline; the generator does not register services or infer
+which read model a query returns.
+
+Both `"name"` and `nameof(UserReadModel.Name)` are accepted, as are
+`"department.name"` and `"Department.Name"`. `nameof(UserReadModel.Department)`
+produces only `"Department"`; a nested path can be written as
+`$"{nameof(UserReadModel.Department)}.{nameof(DepartmentReadModel.Name)}"`.
+Type-qualified strings such as `"UserReadModel.Name"` are not property paths.
+JSON attributes and naming policies are ignored. A separate HTTP response model
+must follow the same field naming conventions.
+
+The generator includes inherited public instance properties with public getters.
+Supported leaves are booleans, characters, numeric primitives, strings, enums,
+`Guid`, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan`, and their
+nullable forms. Nested DTO properties are traversed, including properties whose
+types come from referenced assemblies. Arrays, collections, indexers, static or
+unreadable properties, `object`, `dynamic`, and other `System` types are excluded.
+Traversal stops before revisiting the same type definition in a path, so recursive
+branches such as `Parent.Parent.Name` are not available. No implicit `Id` is added.
+
+Abstract models do not receive validators; their properties are included in
+concrete derived models. Generic read models or models inside generic types report
+`PANSG001`; use a concrete model instead. Nested model names include their containing
+types, for example `Outer_UserReadModelSortingValidator`. Generated classes are
+public only when the model and all its containing types are public; otherwise they
+are internal. Validator name collisions report `PANSG002`, and supported paths
+that differ only by case report `PANSG003`.
+
 Errors preserve indexed property paths such as `Sorting.Fields[0].Field` and
 `Sorting.Fields[0].Order`. `ValidationBehavior` carries those paths into Result
-error metadata. The non-generic validator checks structure only and cannot replace
-the typed validator when checking supported fields.
+error metadata. The base validator checks structure only; use the generated
+validator to check whether fields belong to the read model.
 
 This package does not apply sorting to `IQueryable`, determine SQL translatability,
 or guarantee unique ordering for pagination. Those responsibilities belong to the
@@ -436,7 +467,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortingParameters` is a positional record with a `SortField[]`, a `SortDirection` per field, and optional default merging.
 - `SortingParametersValidator` validates criterion structure, duplicates, and count.
-- `SortDefinition<TReadModel>` supplies field metadata to `SortingParametersValidator<TReadModel>` without runtime property discovery.
+- Generated `<ReadModelName>SortingValidator` classes validate supported CLR paths discovered from `IReadModel` at compile time.
 - `IFilter` identifies application query filter records.
 
 ## Configuration
@@ -486,7 +517,8 @@ Quality Gate succeeds.
 ```text
 .
 ├── src/
-│   └── PANiXiDA.Core.Application/
+│   ├── PANiXiDA.Core.Application/
+│   └── PANiXiDA.Core.Application.Generators/
 ├── tests/
 │   └── PANiXiDA.Core.Application.UnitTests/
 ├── Directory.Build.props

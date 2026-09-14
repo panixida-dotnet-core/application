@@ -1,6 +1,7 @@
 using FluentValidation;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.Application.Querying.Sorting;
 using PANiXiDA.Core.ResultPattern;
 using SortDirection = PANiXiDA.Core.Application.Querying.Sorting.SortDirection;
@@ -31,7 +32,7 @@ public sealed class SortingParametersValidatorTests
     {
         var parameters = new SortingParameters(null!);
         SortingParametersValidator validator = useReadModel
-            ? new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"))
+            ? new SortingTestReadModelSortingValidator()
             : new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
@@ -48,7 +49,7 @@ public sealed class SortingParametersValidatorTests
     {
         var parameters = new SortingParameters([new SortField("name"), null!, new SortField("NAME")]);
         SortingParametersValidator validator = useReadModel
-            ? new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"))
+            ? new SortingTestReadModelSortingValidator()
             : new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
@@ -135,16 +136,18 @@ public sealed class SortingParametersValidatorTests
         action.ShouldThrow<ArgumentOutOfRangeException>().ParamName.ShouldBe(nameof(maxFields));
     }
 
-    [Theory(DisplayName = "Read model validator accepts only fields from its definition ignoring case")]
+    [Theory(DisplayName = "Read model validator accepts only fields from its generated property paths ignoring case")]
     [InlineData("name", true)]
+    [InlineData(nameof(SortingTestReadModel.Name), true)]
     [InlineData("DEPARTMENT.Name", true)]
+    [InlineData(nameof(SortingTestReadModel.Department) + "." + nameof(SortingDepartment.Name), true)]
+    [InlineData("SortingTestReadModel.Name", false)]
     [InlineData("department", false)]
     [InlineData("id", false)]
     [InlineData("unknown", false)]
-    public void Validate_WhenDefinitionIsProvided_ChecksAllowedFields(string field, bool isValid)
+    public void Validate_WhenReadModelIsProvided_ChecksAllowedFields(string field, bool isValid)
     {
-        var definition = new SortDefinition<TestReadModel>("name", "department.name");
-        var validator = new SortingParametersValidator<TestReadModel>(definition);
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(SortingParameters.Ascending(field));
 
@@ -158,9 +161,9 @@ public sealed class SortingParametersValidatorTests
     }
 
     [Fact(DisplayName = "Read model validator reports malformed paths once and retains structural rules")]
-    public void Validate_WhenDefinitionIsProvided_AppliesStructuralRules()
+    public void Validate_WhenReadModelIsProvided_AppliesStructuralRules()
     {
-        var validator = new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"), maxFields: 1);
+        var validator = new SortingTestReadModelSortingValidator(maxFields: 1);
         var parameters = SortingParameters.Of(new SortField("", (SortDirection)99), new SortField("name"));
 
         var result = validator.Validate(parameters);
@@ -168,13 +171,13 @@ public sealed class SortingParametersValidatorTests
         result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Fields", "Fields[0].Field", "Fields[0].Order"]);
     }
 
-    [Fact(DisplayName = "Read model validator requires a definition and accepts empty sorting")]
-    public void Constructor_WhenDefinitionIsMissing_Throws()
+    [Fact(DisplayName = "Read model validator requires a field set and accepts empty sorting")]
+    public void Constructor_WhenFieldSetIsMissing_Throws()
     {
-        var action = () => new SortingParametersValidator<TestReadModel>(null!);
-        var validator = new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>());
+        var action = () => new TestSortingValidator(null!);
+        var validator = new EmptySortingReadModelSortingValidator();
 
-        action.ShouldThrow<ArgumentNullException>().ParamName.ShouldBe("definition");
+        action.ShouldThrow<ArgumentNullException>().ParamName.ShouldBe("fields");
         validator.Validate(SortingParameters.None).IsValid.ShouldBeTrue();
         validator.Validate(SortingParameters.Ascending("id")).IsValid.ShouldBeFalse();
     }
@@ -205,7 +208,7 @@ public sealed class SortingParametersValidatorTests
         error.Metadata[Error.FieldMetadataKey].ShouldBe("Sorting.Fields[0].Field");
     }
 
-    private sealed record TestReadModel(string Name);
+    private sealed class TestSortingValidator(IReadOnlySet<string> fields) : SortingParametersValidator(fields);
 
     private sealed record SortQuery(SortingParameters Sorting) : IRequest<Result>;
 
@@ -215,7 +218,13 @@ public sealed class SortingParametersValidatorTests
         {
             RuleFor(query => query.Sorting)
                 .NotNull()
-                .SetValidator(new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name")));
+                .SetValidator(new SortingTestReadModelSortingValidator());
         }
     }
 }
+
+internal sealed record SortingTestReadModel(string Name, SortingDepartment Department) : IReadModel;
+
+internal sealed record SortingDepartment(string Name);
+
+internal sealed record EmptySortingReadModel : IReadModel;

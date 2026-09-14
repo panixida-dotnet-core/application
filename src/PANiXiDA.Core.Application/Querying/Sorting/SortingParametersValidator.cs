@@ -56,32 +56,25 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
             }
         }).When(parameters => parameters.Fields is not null);
     }
-}
 
-/// <summary>
-/// Also validates that each criterion belongs to the supplied read model sorting definition.
-/// </summary>
-/// <typeparam name="TReadModel">The read model being sorted.</typeparam>
-public sealed class SortingParametersValidator<TReadModel> : SortingParametersValidator
-{
     /// <summary>
-    /// Creates a validator using a read model definition without runtime property discovery.
+    /// Creates a model-specific validator using field paths supplied by generated code.
     /// </summary>
-    /// <param name="definition">The definition supplied for the read model.</param>
+    /// <param name="fields">The supported field paths, compared by the supplied set.</param>
     /// <param name="maxFields">The positive maximum number of criteria.</param>
-    /// <exception cref="ArgumentNullException">The definition is null.</exception>
+    /// <exception cref="ArgumentNullException">The field set is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The maximum is not positive.</exception>
-    public SortingParametersValidator(SortDefinition<TReadModel> definition, int maxFields = DefaultMaxFields)
-        : base(maxFields)
+    protected SortingParametersValidator(IReadOnlySet<string> fields, int maxFields = DefaultMaxFields)
+        : this(maxFields)
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(fields);
 
         RuleForEach(parameters => parameters.Fields)
             .Where(field => field is not null && SortField.IsValidFieldPath(field.Field))
             .ChildRules(field =>
             {
                 field.RuleFor(criterion => criterion.Field)
-                    .Must(definition.Fields.Contains)
+                    .Must(fields.Contains)
                     .WithMessage("Sorting field '{PropertyValue}' is not supported.");
             });
     }
