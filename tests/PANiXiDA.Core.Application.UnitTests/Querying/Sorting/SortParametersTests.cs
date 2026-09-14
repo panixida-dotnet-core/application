@@ -20,7 +20,7 @@ public sealed class SortParametersTests
     [Fact(DisplayName = "Constructor preserves criterion order and takes an immutable snapshot")]
     public void Constructor_WhenArrayChanges_PreservesOriginalCriteria()
     {
-        var first = new SortField("department.name", SortOrder.Descending);
+        var first = new SortField("department.name", SortOrder.Desc);
         var second = new SortField("name");
         var fields = new[] { first, second };
         var parameters = new SortParameters(fields);
@@ -29,6 +29,18 @@ public sealed class SortParametersTests
 
         parameters.Fields.ShouldBe([first, second]);
         parameters.HasSorting.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Copying sorting parameters preserves immutable criteria")]
+    public void With_WhenCopying_PreservesCriteria()
+    {
+        var parameters = SortParameters.Of(new SortField("department.name", SortOrder.Desc), new SortField("name"));
+
+        var copy = parameters with { };
+
+        copy.ShouldNotBeSameAs(parameters);
+        copy.Fields.ShouldBe(parameters.Fields);
+        copy.HasSorting.ShouldBeTrue();
     }
 
     [Fact(DisplayName = "Constructor rejects null arrays and null criteria")]
@@ -48,27 +60,27 @@ public sealed class SortParametersTests
         var descending = SortParameters.Descending("department.name");
         var multiple = SortParameters.Of(descending.Fields[0], ascending.Fields[0]);
 
-        ascending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("name", SortOrder.Ascending));
-        descending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("department.name", SortOrder.Descending));
-        multiple.Fields.ShouldBe([new SortField("department.name", SortOrder.Descending), new SortField("name")]);
+        ascending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("name", SortOrder.Asc));
+        descending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("department.name", SortOrder.Desc));
+        multiple.Fields.ShouldBe([new SortField("department.name", SortOrder.Desc), new SortField("name")]);
         SortParameters.Of().Fields.ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "WithDefault retains explicit precedence and appends only missing default fields")]
     public void WithDefault_WhenFieldsOverlap_MergesWithoutChangingInputs()
     {
-        var parameters = new SortParameters(new SortField("NAME"), new SortField("department.name", SortOrder.Descending));
-        var defaults = new SortParameters(new SortField("name", SortOrder.Descending), new SortField("createdAt", SortOrder.Descending));
+        var parameters = new SortParameters(new SortField("NAME"), new SortField("department.name", SortOrder.Desc));
+        var defaults = new SortParameters(new SortField("name", SortOrder.Desc), new SortField("createdAt", SortOrder.Desc));
 
         var combined = parameters.WithDefault(defaults);
 
         combined.Fields.ShouldBe([
             new SortField("NAME"),
-            new SortField("department.name", SortOrder.Descending),
-            new SortField("createdAt", SortOrder.Descending)
+            new SortField("department.name", SortOrder.Desc),
+            new SortField("createdAt", SortOrder.Desc)
         ]);
         parameters.Fields.Length.ShouldBe(2);
-        defaults.Fields[0].Order.ShouldBe(SortOrder.Descending);
+        defaults.Fields[0].Order.ShouldBe(SortOrder.Desc);
     }
 
     [Fact(DisplayName = "WithDefault accepts missing defaults and uses defaults when explicit sorting is empty")]
@@ -86,8 +98,8 @@ public sealed class SortParametersTests
     }
 
     [Theory(DisplayName = "SortOrder has localized display names")]
-    [InlineData(SortOrder.Ascending, "По возрастанию")]
-    [InlineData(SortOrder.Descending, "По убыванию")]
+    [InlineData(SortOrder.Asc, "По возрастанию")]
+    [InlineData(SortOrder.Desc, "По убыванию")]
     public void DisplayName_WhenSortOrderIsProvided_ReturnsLocalizedName(
         SortOrder sortOrder,
         string expectedDisplayName)

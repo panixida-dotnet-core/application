@@ -5,12 +5,13 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 public sealed class SortFieldTests
 {
     [Theory(DisplayName = "TryParse accepts field paths and case-insensitive short directions")]
-    [InlineData("name", "name", SortOrder.Ascending)]
-    [InlineData("department.name:desc", "department.name", SortOrder.Descending)]
-    [InlineData(" Name : ASC ", "Name", SortOrder.Ascending)]
-    [InlineData("department.name:DeSc", "department.name", SortOrder.Descending)]
-    [InlineData("full-name", "full-name", SortOrder.Ascending)]
-    [InlineData("отдел.название", "отдел.название", SortOrder.Ascending)]
+    [InlineData("name", "name", SortOrder.Asc)]
+    [InlineData("name:asc", "name", SortOrder.Asc)]
+    [InlineData("department.name:desc", "department.name", SortOrder.Desc)]
+    [InlineData(" Name : ASC ", "Name", SortOrder.Asc)]
+    [InlineData("department.name:DeSc", "department.name", SortOrder.Desc)]
+    [InlineData("full-name", "full-name", SortOrder.Asc)]
+    [InlineData("отдел.название", "отдел.название", SortOrder.Asc)]
     public void TryParse_WhenValueIsValid_ReturnsCriterion(string value, string field, SortOrder order)
     {
         var success = SortField.TryParse(value, out var result);
@@ -30,6 +31,7 @@ public sealed class SortFieldTests
     [InlineData("name:0")]
     [InlineData("name:1")]
     [InlineData("name:-1")]
+    [InlineData("name:asc,desc")]
     [InlineData("name:desc:asc")]
     [InlineData("name desc")]
     [InlineData("name,age")]

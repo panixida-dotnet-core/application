@@ -7,7 +7,7 @@ namespace PANiXiDA.Core.Application.Querying.Sorting;
 /// </summary>
 /// <param name="Field">The field path, such as <c>department.name</c>.</param>
 /// <param name="Order">The sort direction.</param>
-public sealed record SortField(string Field, SortOrder Order = SortOrder.Ascending)
+public sealed record SortField(string Field, SortOrder Order = SortOrder.Asc)
 {
     /// <summary>
     /// Parses a field path with an optional <c>:asc</c> or <c>:desc</c> suffix, ignoring case.
@@ -31,15 +31,15 @@ public sealed record SortField(string Field, SortOrder Order = SortOrder.Ascendi
             return false;
         }
 
-        var order = SortOrder.Ascending;
+        var order = SortOrder.Asc;
 
         if (parts.Length == 2)
         {
-            if (string.Equals(parts[1], "desc", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(parts[1], nameof(SortOrder.Desc), StringComparison.OrdinalIgnoreCase))
             {
-                order = SortOrder.Descending;
+                order = SortOrder.Desc;
             }
-            else if (!string.Equals(parts[1], "asc", StringComparison.OrdinalIgnoreCase))
+            else if (!string.Equals(parts[1], nameof(SortOrder.Asc), StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

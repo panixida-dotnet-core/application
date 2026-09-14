@@ -55,13 +55,13 @@ public sealed class SortParametersValidatorTests
 
         var failure = result.Errors.ShouldHaveSingleItem();
         failure.PropertyName.ShouldBe("Fields[0].Order");
-        failure.ErrorMessage.ShouldBe("Sort order must be Ascending or Descending.");
+        failure.ErrorMessage.ShouldBe("Sort order must be Asc or Desc.");
     }
 
     [Fact(DisplayName = "Validate rejects repeated field paths regardless of casing or direction")]
     public void Validate_WhenFieldIsRepeated_ReturnsDuplicateFailure()
     {
-        var parameters = new SortParameters(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortOrder.Descending));
+        var parameters = new SortParameters(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortOrder.Desc));
         var validator = new SortParametersValidator();
 
         var result = validator.Validate(parameters);

@@ -33,8 +33,8 @@ public class SortParametersValidator : AbstractValidator<SortParameters>
                 .WithMessage("Sorting field must be a non-empty path without whitespace, colons, commas, or empty segments.");
 
             field.RuleFor(criterion => criterion.Order)
-                .Must(order => order is SortOrder.Ascending or SortOrder.Descending)
-                .WithMessage("Sort order must be Ascending or Descending.");
+                .Must(order => order is SortOrder.Asc or SortOrder.Desc)
+                .WithMessage($"Sort order must be {nameof(SortOrder.Asc)} or {nameof(SortOrder.Desc)}.");
         });
 
         RuleFor(parameters => parameters.Fields).Custom((fields, context) =>

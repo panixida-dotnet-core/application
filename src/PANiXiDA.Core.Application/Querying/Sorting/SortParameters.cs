@@ -78,7 +78,7 @@ public sealed record SortParameters
     /// <returns>The sorting parameters.</returns>
     public static SortParameters Descending(string field)
     {
-        return new SortParameters(new SortField(field, SortOrder.Descending));
+        return new SortParameters(new SortField(field, SortOrder.Desc));
     }
 
     /// <summary>

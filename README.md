@@ -176,14 +176,15 @@ calculations keep their behavior; validate the parameters before using them in a
 ### Sorting
 
 `SortParameters` contains an immutable array of `SortField` criteria in their order
-of precedence. Each criterion has a public read model `Field` path and a `SortOrder`.
+of precedence. Each criterion has a public read model `Field` path and a `SortOrder`
+with short members `Asc` and `Desc`.
 Neither empty sorting nor default merging adds an implicit `Id` criterion.
 
 ```csharp
 using PANiXiDA.Core.Application.Querying.Sorting;
 
 var sorting = SortParameters.Of(
-    new SortField("department.name", SortOrder.Descending),
+    new SortField("department.name", SortOrder.Desc),
     new SortField("name"));
 
 var defaults = SortParameters.Descending("createdAt");
@@ -204,9 +205,10 @@ criterion and `Of(...)` for several criteria. Construction copies the input arra
 and rejects a null array or null criteria. `Fields` is immutable.
 
 `SortField.TryParse` accepts `field`, `field:asc`, and `field:desc`. Directions are
-case-insensitive; surrounding whitespace is trimmed. Numeric directions, full enum
-names such as `Descending`, empty path segments, whitespace inside paths, commas,
-and additional colons are rejected. Dot-separated paths are literal public field
+matched against the enum member names without regard to case; surrounding
+whitespace is trimmed. Numeric directions, full words such as `Descending`, empty
+path segments, whitespace inside paths, commas, and additional colons are rejected.
+Dot-separated paths are literal public field
 names, not executable expressions. Parsing checks syntax, not whether the field
 exists in a read model.
 
