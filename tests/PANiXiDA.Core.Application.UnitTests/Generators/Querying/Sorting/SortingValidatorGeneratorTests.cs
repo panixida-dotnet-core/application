@@ -2,9 +2,9 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using PANiXiDA.Core.Application.Generators;
+using PANiXiDA.Core.Application.Generators.Querying.Sorting;
 
-namespace PANiXiDA.Core.Application.UnitTests.Generators;
+namespace PANiXiDA.Core.Application.UnitTests.Generators.Querying.Sorting;
 
 public sealed class SortingValidatorGeneratorTests
 {

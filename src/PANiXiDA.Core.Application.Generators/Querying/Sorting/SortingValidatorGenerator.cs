@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace PANiXiDA.Core.Application.Generators;
+namespace PANiXiDA.Core.Application.Generators.Querying.Sorting;
 
 /// <summary>
 /// Generates sorting validators from concrete read model properties at compile time.
