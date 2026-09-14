@@ -22,6 +22,17 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="../PANiXiDA.Core.Application.Generators/PANiXiDA.Core.Application.Generators.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <None Include="../PANiXiDA.Core.Application.Generators/bin/$(Configuration)/netstandard2.0/PANiXiDA.Core.Application.Generators.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Using Include="PANiXiDA.Core.ResultPattern" />
         <Using Include="PANiXiDA.Core.Domain.DomainEvents" />
         <Using Include="PANiXiDA.Core.Domain.AggregateRoots" />
