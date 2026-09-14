@@ -3,6 +3,7 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Querying.Sorting;
 using PANiXiDA.Core.ResultPattern;
+using SortDirection = PANiXiDA.Core.Application.Querying.Sorting.SortDirection;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 

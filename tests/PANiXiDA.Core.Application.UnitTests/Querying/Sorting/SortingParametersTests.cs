@@ -1,6 +1,7 @@
 using PANiXiDA.Core.Application.Querying.Sorting;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
+using SortDirection = PANiXiDA.Core.Application.Querying.Sorting.SortDirection;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 

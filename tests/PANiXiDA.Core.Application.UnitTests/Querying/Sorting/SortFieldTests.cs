@@ -1,4 +1,5 @@
 using PANiXiDA.Core.Application.Querying.Sorting;
+using SortDirection = PANiXiDA.Core.Application.Querying.Sorting.SortDirection;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 
