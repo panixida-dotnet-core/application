@@ -22,7 +22,8 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
-- Read-side helper models for page-based pagination, cursor pagination, sorting, filtering, and validated result limits.
+- Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
+- Immutable sorting criteria, optional default merging, and structural or read-model-specific FluentValidation validators.
 
 ## Requirements
 
@@ -33,7 +34,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="3.1.1" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="4.0.0" />
 </ItemGroup>
 ```
 
@@ -171,6 +172,103 @@ public sealed class GetPageQueryValidator : AbstractValidator<GetPageQuery>
 
 Validation leaves the supplied parameters unchanged. Existing `Skip` and `Take`
 calculations keep their behavior; validate the parameters before using them in a query.
+
+### Sorting
+
+`SortParameters` contains an immutable array of `SortField` criteria in their order
+of precedence. Each criterion has a public read model `Field` path and a `SortOrder`.
+Neither empty sorting nor default merging adds an implicit `Id` criterion.
+
+```csharp
+using PANiXiDA.Core.Application.Querying.Sorting;
+
+var sorting = SortParameters.Of(
+    new SortField("department.name", SortOrder.Descending),
+    new SortField("name"));
+
+var defaults = SortParameters.Descending("createdAt");
+var effectiveSorting = sorting.WithDefault(defaults);
+```
+
+This produces `department.name` descending, `name` ascending, then `createdAt`
+descending. Explicit fields keep their position and direction; defaults with the
+same field path are skipped using ordinal case-insensitive comparison. Missing
+default fields are appended in their original order. Both inputs stay unchanged.
+Validate both inputs before merging; if the total criterion limit also applies to
+the merged sorting, validate the merged result as well. Invalid criteria are not
+silently repaired by validation.
+
+`SortParameters.None`, `SortParameters.Default()`, and `SortParameters.Of()` all
+represent empty sorting. Use `Ascending(field)` or `Descending(field)` for one
+criterion and `Of(...)` for several criteria. Construction copies the input array
+and rejects a null array or null criteria. `Fields` is immutable.
+
+`SortField.TryParse` accepts `field`, `field:asc`, and `field:desc`. Directions are
+case-insensitive; surrounding whitespace is trimmed. Numeric directions, full enum
+names such as `Descending`, empty path segments, whitespace inside paths, commas,
+and additional colons are rejected. Dot-separated paths are literal public field
+names, not executable expressions. Parsing checks syntax, not whether the field
+exists in a read model.
+
+```csharp
+using PANiXiDA.Core.Application.Querying.Sorting;
+
+if (SortField.TryParse("department.name:desc", out var field))
+{
+    var sorting = new SortParameters(field);
+}
+```
+
+The parser handles individual repeated query values such as
+`?sort=department.name:desc&sort=name:asc`. An HTTP adapter binds a `SortField[]`
+and constructs `SortParameters` from it. Direct `[AsParameters]` binding of
+`SortParameters.Fields`, endpoint metadata, and OpenAPI transformations are not
+provided by this application-layer package.
+
+### Sorting Validation
+
+`SortParametersValidator` validates path syntax, directions, case-insensitive
+duplicate paths, and a maximum of five criteria by default. Empty sorting is valid.
+Use the `maxFields` constructor argument to choose another positive limit.
+
+`SortParametersValidator<TReadModel>` additionally checks that every path belongs
+to a `SortDefinition<TReadModel>`. A definition is an immutable, case-insensitive
+set of public field paths and performs no runtime property discovery. It rejects
+malformed paths and name collisions at construction time. The composition root
+supplies the definition to the typed validator. Automatic generation of field
+definitions and their registration are not part of this package.
+
+Compose the typed validator into the existing request validation pipeline:
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying;
+using PANiXiDA.Core.Application.Querying.Sorting;
+
+public sealed record UserReadModel(string Name) : IReadModel;
+public sealed record GetUsersQuery(SortParameters Sorting);
+
+public sealed class GetUsersQueryValidator : AbstractValidator<GetUsersQuery>
+{
+    public GetUsersQueryValidator(SortParametersValidator<UserReadModel> sortingValidator)
+    {
+        RuleFor(query => query.Sorting)
+            .NotNull()
+            .SetValidator(sortingValidator);
+    }
+}
+```
+
+Errors preserve indexed property paths such as `Sorting.Fields[0].Field` and
+`Sorting.Fields[0].Order`. `ValidationBehavior` carries those paths into Result
+error metadata. The non-generic validator checks structure only and cannot replace
+the typed validator when checking supported fields.
+
+This package does not apply sorting to `IQueryable`, determine SQL translatability,
+or guarantee unique ordering for pagination. Those responsibilities belong to the
+persistence adapter and the selected read model. No runtime reflection-based field
+discovery or dynamic LINQ dependency is introduced by these sorting types; this is
+not a NativeAOT compatibility guarantee for FluentValidation or the full stack.
 
 ## Request Behaviors
 
@@ -332,7 +430,9 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `PaginationResult<TItem>` returns page metadata and items.
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
-- `SortParameters` and `SortOrder` represent read sorting options.
+- `SortParameters` contains an immutable array of `SortField` criteria with a `SortOrder` per field and optional default merging.
+- `SortParametersValidator` validates criterion structure, duplicates, and count.
+- `SortDefinition<TReadModel>` supplies field metadata to `SortParametersValidator<TReadModel>` without runtime property discovery.
 - `IFilter` identifies application query filter records.
 
 ## Configuration

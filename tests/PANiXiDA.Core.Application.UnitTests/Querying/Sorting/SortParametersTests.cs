@@ -6,37 +6,83 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 
 public sealed class SortParametersTests
 {
-    [Fact(DisplayName = "Default returns ascending sorting without a field")]
-    public void Default_WhenCalled_ReturnsAscendingSortingWithoutField()
+    [Fact(DisplayName = "Default sorting contains no implicit fields")]
+    public void Default_WhenCalled_ReturnsEmptySorting()
     {
         var parameters = SortParameters.Default();
 
-        parameters.Field.ShouldBeNull();
-        parameters.Order.ShouldBe(SortOrder.Ascending);
+        parameters.Fields.ShouldBeEmpty();
+        parameters.HasSorting.ShouldBeFalse();
+        SortParameters.None.Fields.ShouldBeEmpty();
+        new SortParameters().Fields.ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "Constructor stores sorting values")]
-    public void Constructor_WhenValuesAreProvided_StoresValues()
+    [Fact(DisplayName = "Constructor preserves criterion order and takes an immutable snapshot")]
+    public void Constructor_WhenArrayChanges_PreservesOriginalCriteria()
     {
-        var parameters = new SortParameters(Field: "name", Order: SortOrder.Descending);
+        var first = new SortField("department.name", SortOrder.Descending);
+        var second = new SortField("name");
+        var fields = new[] { first, second };
+        var parameters = new SortParameters(fields);
 
-        parameters.Field.ShouldBe("name");
-        parameters.Order.ShouldBe(SortOrder.Descending);
+        fields[0] = new SortField("changed");
+
+        parameters.Fields.ShouldBe([first, second]);
+        parameters.HasSorting.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "With expression copies and updates sorting parameters")]
-    public void WithExpression_WhenSortValuesAreChanged_CopiesAndUpdatesParameters()
+    [Fact(DisplayName = "Constructor rejects null arrays and null criteria")]
+    public void Constructor_WhenInputIsNull_ThrowsArgumentException()
     {
-        var parameters = new SortParameters(Field: "name", Order: SortOrder.Ascending);
+        var nullArray = () => new SortParameters(null!);
+        var nullCriterion = () => new SortParameters([null!]);
 
-        var updated = parameters with
-        {
-            Field = "createdAt",
-            Order = SortOrder.Descending
-        };
+        nullArray.ShouldThrow<ArgumentNullException>().ParamName.ShouldBe("fields");
+        nullCriterion.ShouldThrow<ArgumentException>().ParamName.ShouldBe("fields");
+    }
 
-        updated.Field.ShouldBe("createdAt");
-        updated.Order.ShouldBe(SortOrder.Descending);
+    [Fact(DisplayName = "Factories preserve criterion order and direction")]
+    public void Factories_WhenCalled_PreserveFieldAndDirection()
+    {
+        var ascending = SortParameters.Ascending("name");
+        var descending = SortParameters.Descending("department.name");
+        var multiple = SortParameters.Of(descending.Fields[0], ascending.Fields[0]);
+
+        ascending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("name", SortOrder.Ascending));
+        descending.Fields.ShouldHaveSingleItem().ShouldBe(new SortField("department.name", SortOrder.Descending));
+        multiple.Fields.ShouldBe([new SortField("department.name", SortOrder.Descending), new SortField("name")]);
+        SortParameters.Of().Fields.ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "WithDefault retains explicit precedence and appends only missing default fields")]
+    public void WithDefault_WhenFieldsOverlap_MergesWithoutChangingInputs()
+    {
+        var parameters = new SortParameters(new SortField("NAME"), new SortField("department.name", SortOrder.Descending));
+        var defaults = new SortParameters(new SortField("name", SortOrder.Descending), new SortField("createdAt", SortOrder.Descending));
+
+        var combined = parameters.WithDefault(defaults);
+
+        combined.Fields.ShouldBe([
+            new SortField("NAME"),
+            new SortField("department.name", SortOrder.Descending),
+            new SortField("createdAt", SortOrder.Descending)
+        ]);
+        parameters.Fields.Length.ShouldBe(2);
+        defaults.Fields[0].Order.ShouldBe(SortOrder.Descending);
+    }
+
+    [Fact(DisplayName = "WithDefault accepts missing defaults and uses defaults when explicit sorting is empty")]
+    public void WithDefault_WhenOneSideIsEmpty_PreservesAvailableCriteria()
+    {
+        var defaults = SortParameters.Descending("name");
+
+        var combined = SortParameters.None.WithDefault(defaults);
+
+        combined.Fields.ShouldBe(defaults.Fields);
+        defaults.WithDefault(null).ShouldBeSameAs(defaults);
+        defaults.WithDefault(SortParameters.None).ShouldBeSameAs(defaults);
+        defaults.WithDefault(SortParameters.Ascending("NAME")).ShouldBeSameAs(defaults);
+        SortParameters.None.WithDefault(null).Fields.ShouldBeEmpty();
     }
 
     [Theory(DisplayName = "SortOrder has localized display names")]
