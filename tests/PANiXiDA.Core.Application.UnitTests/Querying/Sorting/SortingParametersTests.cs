@@ -14,43 +14,37 @@ public sealed class SortingParametersTests
         parameters.Fields.ShouldBeEmpty();
         parameters.HasSorting.ShouldBeFalse();
         SortingParameters.None.Fields.ShouldBeEmpty();
-        new SortingParameters().Fields.ShouldBeEmpty();
+        new SortingParameters([]).Fields.ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "Constructor preserves criterion order and takes an immutable snapshot")]
-    public void Constructor_WhenArrayChanges_PreservesOriginalCriteria()
+    [Fact(DisplayName = "Positional record stores and deconstructs the supplied criteria array")]
+    public void Constructor_WhenArrayIsProvided_PreservesArrayReference()
     {
         var first = new SortField("department.name", SortDirection.Desc);
         var second = new SortField("name");
         var fields = new[] { first, second };
         var parameters = new SortingParameters(fields);
 
-        fields[0] = new SortField("changed");
+        parameters.Deconstruct(out var actualFields);
 
+        parameters.Fields.ShouldBeSameAs(fields);
+        actualFields.ShouldBeSameAs(fields);
         parameters.Fields.ShouldBe([first, second]);
         parameters.HasSorting.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Copying sorting parameters preserves immutable criteria")]
-    public void With_WhenCopying_PreservesCriteria()
+    [Fact(DisplayName = "With replaces the criteria array without changing the original record")]
+    public void With_WhenReplacingFields_PreservesOriginalCriteria()
     {
         var parameters = SortingParameters.Of(new SortField("department.name", SortDirection.Desc), new SortField("name"));
+        var replacement = new[] { new SortField("createdAt") };
 
-        var copy = parameters with { };
+        var copy = parameters with { Fields = replacement };
 
         copy.ShouldNotBeSameAs(parameters);
-        copy.Fields.ShouldBe(parameters.Fields);
+        copy.Fields.ShouldBeSameAs(replacement);
         copy.HasSorting.ShouldBeTrue();
-    }
-
-    [Fact(DisplayName = "Constructor rejects null arrays and null criteria")]
-    public void Constructor_WhenInputIsNull_ThrowsArgumentException()
-    {
-        var nullArray = () => new SortingParameters(null!);
-        var nullCriterion = () => new SortingParameters([null!]);
-
-        nullArray.ShouldThrow<ArgumentNullException>().ParamName.ShouldBe("fields");
-        nullCriterion.ShouldThrow<ArgumentException>().ParamName.ShouldBe("fields");
+        parameters.Fields.ShouldBe([new SortField("department.name", SortDirection.Desc), new SortField("name")]);
     }
 
     [Fact(DisplayName = "Factories preserve criterion order and direction")]
@@ -69,8 +63,8 @@ public sealed class SortingParametersTests
     [Fact(DisplayName = "WithDefault retains explicit precedence and appends only missing default fields")]
     public void WithDefault_WhenFieldsOverlap_MergesWithoutChangingInputs()
     {
-        var parameters = new SortingParameters(new SortField("NAME"), new SortField("department.name", SortDirection.Desc));
-        var defaults = new SortingParameters(new SortField("name", SortDirection.Desc), new SortField("createdAt", SortDirection.Desc));
+        var parameters = SortingParameters.Of(new SortField("NAME"), new SortField("department.name", SortDirection.Desc));
+        var defaults = SortingParameters.Of(new SortField("name", SortDirection.Desc), new SortField("createdAt", SortDirection.Desc));
 
         var combined = parameters.WithDefault(defaults);
 

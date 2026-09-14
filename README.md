@@ -175,7 +175,7 @@ calculations keep their behavior; validate the parameters before using them in a
 
 ### Sorting
 
-`SortingParameters` contains an immutable array of `SortField` criteria in their order
+`SortingParameters` is a positional record containing a `SortField[]` in its order
 of precedence. Each criterion has a public read model `Field` path and a `SortDirection`
 with short members `Asc` and `Desc`.
 Neither empty sorting nor default merging adds an implicit `Id` criterion.
@@ -201,8 +201,10 @@ silently repaired by validation.
 
 `SortingParameters.None`, `SortingParameters.Default()`, and `SortingParameters.Of()` all
 represent empty sorting. Use `Ascending(field)` or `Descending(field)` for one
-criterion and `Of(...)` for several criteria. Construction copies the input array
-and rejects a null array or null criteria. `Fields` is immutable.
+criterion and `Of(...)` for several criteria. The constructor accepts an array:
+`new SortingParameters([new SortField("name")])`. Construction and `Of(...)` retain
+the supplied array without copying or validating it. `Fields` is mutable through
+its array elements and can be replaced using `with`. Validate before use.
 
 `SortField.TryParse` accepts `field`, `field:asc`, and `field:desc`. Directions are
 matched against the enum member names without regard to case; surrounding
@@ -217,19 +219,19 @@ using PANiXiDA.Core.Application.Querying.Sorting;
 
 if (SortField.TryParse("department.name:desc", out var field))
 {
-    var sorting = new SortingParameters(field);
+    var sorting = new SortingParameters([field]);
 }
 ```
 
 The parser handles individual repeated query values such as
 `?sort=department.name:desc&sort=name:asc`. An HTTP adapter binds a `SortField[]`
-and constructs `SortingParameters` from it. Direct `[AsParameters]` binding of
-`SortingParameters.Fields`, endpoint metadata, and OpenAPI transformations are not
-provided by this application-layer package.
+and constructs `SortingParameters` from it. Query parameter naming, endpoint
+metadata, and OpenAPI transformations belong to the HTTP adapter.
 
 ### Sorting Validation
 
-`SortingParametersValidator` validates path syntax, directions, case-insensitive
+`SortingParametersValidator` rejects null arrays and null criteria and validates
+path syntax, directions, case-insensitive
 duplicate paths, and a maximum of five criteria by default. Empty sorting is valid.
 Use the `maxFields` constructor argument to choose another positive limit.
 
@@ -432,7 +434,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `PaginationResult<TItem>` returns page metadata and items.
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
-- `SortingParameters` contains an immutable array of `SortField` criteria with a `SortDirection` per field and optional default merging.
+- `SortingParameters` is a positional record with a `SortField[]`, a `SortDirection` per field, and optional default merging.
 - `SortingParametersValidator` validates criterion structure, duplicates, and count.
 - `SortDefinition<TReadModel>` supplies field metadata to `SortingParametersValidator<TReadModel>` without runtime property discovery.
 - `IFilter` identifies application query filter records.

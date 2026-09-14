@@ -23,6 +23,39 @@ public sealed class SortingParametersValidatorTests
         parameters.Fields.Length.ShouldBe(count);
     }
 
+    [Theory(DisplayName = "Validate reports null criteria arrays through FluentValidation")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Validate_WhenArrayIsNull_ReturnsFieldFailure(bool useReadModel)
+    {
+        var parameters = new SortingParameters(null!);
+        SortingParametersValidator validator = useReadModel
+            ? new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"))
+            : new SortingParametersValidator();
+
+        var result = validator.Validate(parameters);
+
+        var failure = result.Errors.ShouldHaveSingleItem();
+        failure.PropertyName.ShouldBe("Fields");
+        failure.ErrorCode.ShouldBe("NotNullValidator");
+    }
+
+    [Theory(DisplayName = "Validate reports null criteria and preserves subsequent field indexes")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Validate_WhenCriterionIsNull_ReturnsIndexedFailures(bool useReadModel)
+    {
+        var parameters = new SortingParameters([new SortField("name"), null!, new SortField("NAME")]);
+        SortingParametersValidator validator = useReadModel
+            ? new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"))
+            : new SortingParametersValidator();
+
+        var result = validator.Validate(parameters);
+
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Fields[1]", "Fields[2].Field"]);
+        result.Errors[0].ErrorCode.ShouldBe("NotNullValidator");
+    }
+
     [Theory(DisplayName = "Validate reports invalid field paths without changing the input")]
     [InlineData(null)]
     [InlineData("")]
@@ -33,7 +66,7 @@ public sealed class SortingParametersValidatorTests
     [InlineData("name,age")]
     public void Validate_WhenPathIsInvalid_ReturnsIndexedFailure(string? field)
     {
-        var parameters = new SortingParameters(new SortField(field!));
+        var parameters = SortingParameters.Of(new SortField(field!));
         var validator = new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
@@ -49,7 +82,7 @@ public sealed class SortingParametersValidatorTests
     public void Validate_WhenOrderIsInvalid_ReturnsIndexedFailure(int order)
     {
         var validator = new SortingParametersValidator();
-        var parameters = new SortingParameters(new SortField("name", (SortDirection)order));
+        var parameters = SortingParameters.Of(new SortField("name", (SortDirection)order));
 
         var result = validator.Validate(parameters);
 
@@ -61,7 +94,7 @@ public sealed class SortingParametersValidatorTests
     [Fact(DisplayName = "Validate rejects repeated field paths regardless of casing or direction")]
     public void Validate_WhenFieldIsRepeated_ReturnsDuplicateFailure()
     {
-        var parameters = new SortingParameters(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortDirection.Desc));
+        var parameters = SortingParameters.Of(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortDirection.Desc));
         var validator = new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
@@ -127,7 +160,7 @@ public sealed class SortingParametersValidatorTests
     public void Validate_WhenDefinitionIsProvided_AppliesStructuralRules()
     {
         var validator = new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"), maxFields: 1);
-        var parameters = new SortingParameters(new SortField("", (SortDirection)99), new SortField("name"));
+        var parameters = SortingParameters.Of(new SortField("", (SortDirection)99), new SortField("name"));
 
         var result = validator.Validate(parameters);
 
@@ -149,7 +182,7 @@ public sealed class SortingParametersValidatorTests
     public void SetValidator_WhenFieldsAreInvalid_ReturnsNestedPaths()
     {
         var validator = new SortQueryValidator();
-        var query = new SortQuery(new SortingParameters(new SortField("name"), new SortField("NAME"), new SortField("id")));
+        var query = new SortQuery(SortingParameters.Of(new SortField("name"), new SortField("NAME"), new SortField("id")));
 
         var result = validator.Validate(query);
 

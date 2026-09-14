@@ -49,7 +49,7 @@ public sealed record SortField(string Field, SortDirection Order = SortDirection
         return true;
     }
 
-    internal static bool IsValidFieldPath(string? field)
+    internal static bool IsValidFieldPath([NotNullWhen(true)] string? field)
     {
         if (string.IsNullOrEmpty(field))
         {

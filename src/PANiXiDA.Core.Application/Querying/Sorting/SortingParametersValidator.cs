@@ -23,10 +23,12 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFields);
 
         RuleFor(parameters => parameters.Fields)
+            .Cascade(CascadeMode.Stop)
+            .NotNull()
             .Must(fields => fields.Length <= maxFields)
             .WithMessage($"Sorting must contain no more than {maxFields} fields.");
 
-        RuleForEach(parameters => parameters.Fields).ChildRules(field =>
+        RuleForEach(parameters => parameters.Fields).NotNull().ChildRules(field =>
         {
             field.RuleFor(criterion => criterion.Field)
                 .Must(SortField.IsValidFieldPath)
@@ -43,7 +45,7 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
 
             for (var index = 0; index < fields.Length; index++)
             {
-                var field = fields[index].Field;
+                var field = fields[index]?.Field;
 
                 if (SortField.IsValidFieldPath(field) && !names.Add(field))
                 {
@@ -52,7 +54,7 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
                         $"Sorting field '{field}' must not occur more than once."));
                 }
             }
-        });
+        }).When(parameters => parameters.Fields is not null);
     }
 }
 
@@ -75,7 +77,7 @@ public sealed class SortingParametersValidator<TReadModel> : SortingParametersVa
         ArgumentNullException.ThrowIfNull(definition);
 
         RuleForEach(parameters => parameters.Fields)
-            .Where(field => SortField.IsValidFieldPath(field.Field))
+            .Where(field => field is not null && SortField.IsValidFieldPath(field.Field))
             .ChildRules(field =>
             {
                 field.RuleFor(criterion => criterion.Field)

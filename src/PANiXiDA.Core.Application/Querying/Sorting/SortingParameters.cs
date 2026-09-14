@@ -1,44 +1,20 @@
-using System.Collections.Immutable;
-
 namespace PANiXiDA.Core.Application.Querying.Sorting;
 
 /// <summary>
 /// Contains sorting criteria in their order of precedence without adding implicit fields.
 /// </summary>
-public sealed record SortingParameters
+/// <param name="Fields">The sorting criteria in their order of precedence.</param>
+public sealed record SortingParameters(SortField[] Fields)
 {
     /// <summary>
     /// Gets empty sorting parameters.
     /// </summary>
-    public static SortingParameters None { get; } = new();
-
-    /// <summary>
-    /// Gets the immutable snapshot of the supplied sorting criteria.
-    /// </summary>
-    public ImmutableArray<SortField> Fields { get; }
+    public static SortingParameters None { get; } = new([]);
 
     /// <summary>
     /// Gets whether at least one sorting criterion is present.
     /// </summary>
-    public bool HasSorting => !Fields.IsEmpty;
-
-    /// <summary>
-    /// Creates sorting parameters by copying the supplied criteria.
-    /// </summary>
-    /// <param name="fields">The criteria in their order of precedence.</param>
-    /// <exception cref="ArgumentNullException">The array is null.</exception>
-    /// <exception cref="ArgumentException">The array contains a null criterion.</exception>
-    public SortingParameters(params SortField[] fields)
-    {
-        ArgumentNullException.ThrowIfNull(fields);
-
-        if (Array.Exists(fields, static field => field is null))
-        {
-            throw new ArgumentException("Sorting criteria must not contain null elements.", nameof(fields));
-        }
-
-        Fields = [.. fields];
-    }
+    public bool HasSorting => Fields.Length > 0;
 
     /// <summary>
     /// Returns empty sorting parameters without an implicit identifier criterion.
@@ -52,10 +28,8 @@ public sealed record SortingParameters
     /// <summary>
     /// Creates sorting parameters from criteria in their order of precedence.
     /// </summary>
-    /// <param name="fields">The criteria to copy.</param>
+    /// <param name="fields">The sorting criteria.</param>
     /// <returns>The sorting parameters.</returns>
-    /// <exception cref="ArgumentNullException">The array is null.</exception>
-    /// <exception cref="ArgumentException">The array contains a null criterion.</exception>
     public static SortingParameters Of(params SortField[] fields)
     {
         return new SortingParameters(fields);
@@ -68,7 +42,7 @@ public sealed record SortingParameters
     /// <returns>The sorting parameters.</returns>
     public static SortingParameters Ascending(string field)
     {
-        return new SortingParameters(new SortField(field));
+        return new SortingParameters([new SortField(field)]);
     }
 
     /// <summary>
@@ -78,7 +52,7 @@ public sealed record SortingParameters
     /// <returns>The sorting parameters.</returns>
     public static SortingParameters Descending(string field)
     {
-        return new SortingParameters(new SortField(field, SortDirection.Desc));
+        return new SortingParameters([new SortField(field, SortDirection.Desc)]);
     }
 
     /// <summary>
