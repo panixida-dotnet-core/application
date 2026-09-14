@@ -5,12 +5,12 @@ namespace PANiXiDA.Core.Application.Querying.Sorting;
 /// <summary>
 /// Contains sorting criteria in their order of precedence without adding implicit fields.
 /// </summary>
-public sealed record SortParameters
+public sealed record SortingParameters
 {
     /// <summary>
     /// Gets empty sorting parameters.
     /// </summary>
-    public static SortParameters None { get; } = new();
+    public static SortingParameters None { get; } = new();
 
     /// <summary>
     /// Gets the immutable snapshot of the supplied sorting criteria.
@@ -28,7 +28,7 @@ public sealed record SortParameters
     /// <param name="fields">The criteria in their order of precedence.</param>
     /// <exception cref="ArgumentNullException">The array is null.</exception>
     /// <exception cref="ArgumentException">The array contains a null criterion.</exception>
-    public SortParameters(params SortField[] fields)
+    public SortingParameters(params SortField[] fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
 
@@ -44,7 +44,7 @@ public sealed record SortParameters
     /// Returns empty sorting parameters without an implicit identifier criterion.
     /// </summary>
     /// <returns>Empty sorting parameters.</returns>
-    public static SortParameters Default()
+    public static SortingParameters Default()
     {
         return None;
     }
@@ -56,9 +56,9 @@ public sealed record SortParameters
     /// <returns>The sorting parameters.</returns>
     /// <exception cref="ArgumentNullException">The array is null.</exception>
     /// <exception cref="ArgumentException">The array contains a null criterion.</exception>
-    public static SortParameters Of(params SortField[] fields)
+    public static SortingParameters Of(params SortField[] fields)
     {
-        return new SortParameters(fields);
+        return new SortingParameters(fields);
     }
 
     /// <summary>
@@ -66,9 +66,9 @@ public sealed record SortParameters
     /// </summary>
     /// <param name="field">The public read model field path.</param>
     /// <returns>The sorting parameters.</returns>
-    public static SortParameters Ascending(string field)
+    public static SortingParameters Ascending(string field)
     {
-        return new SortParameters(new SortField(field));
+        return new SortingParameters(new SortField(field));
     }
 
     /// <summary>
@@ -76,9 +76,9 @@ public sealed record SortParameters
     /// </summary>
     /// <param name="field">The public read model field path.</param>
     /// <returns>The sorting parameters.</returns>
-    public static SortParameters Descending(string field)
+    public static SortingParameters Descending(string field)
     {
-        return new SortParameters(new SortField(field, SortOrder.Desc));
+        return new SortingParameters(new SortField(field, SortDirection.Desc));
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public sealed record SortParameters
     /// <param name="defaults">Optional default criteria, in their order of precedence.</param>
     /// <returns>The combined criteria, retaining the explicit directions and precedence.</returns>
     /// <remarks>Validate both inputs before merging. No implicit identifier criterion is added.</remarks>
-    public SortParameters WithDefault(SortParameters? defaults)
+    public SortingParameters WithDefault(SortingParameters? defaults)
     {
         if (defaults is null || !defaults.HasSorting)
         {

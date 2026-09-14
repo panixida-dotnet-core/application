@@ -5,14 +5,14 @@ namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 public sealed class SortFieldTests
 {
     [Theory(DisplayName = "TryParse accepts field paths and case-insensitive short directions")]
-    [InlineData("name", "name", SortOrder.Asc)]
-    [InlineData("name:asc", "name", SortOrder.Asc)]
-    [InlineData("department.name:desc", "department.name", SortOrder.Desc)]
-    [InlineData(" Name : ASC ", "Name", SortOrder.Asc)]
-    [InlineData("department.name:DeSc", "department.name", SortOrder.Desc)]
-    [InlineData("full-name", "full-name", SortOrder.Asc)]
-    [InlineData("отдел.название", "отдел.название", SortOrder.Asc)]
-    public void TryParse_WhenValueIsValid_ReturnsCriterion(string value, string field, SortOrder order)
+    [InlineData("name", "name", SortDirection.Asc)]
+    [InlineData("name:asc", "name", SortDirection.Asc)]
+    [InlineData("department.name:desc", "department.name", SortDirection.Desc)]
+    [InlineData(" Name : ASC ", "Name", SortDirection.Asc)]
+    [InlineData("department.name:DeSc", "department.name", SortDirection.Desc)]
+    [InlineData("full-name", "full-name", SortDirection.Asc)]
+    [InlineData("отдел.название", "отдел.название", SortDirection.Asc)]
+    public void TryParse_WhenValueIsValid_ReturnsCriterion(string value, string field, SortDirection order)
     {
         var success = SortField.TryParse(value, out var result);
 

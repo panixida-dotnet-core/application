@@ -6,7 +6,7 @@ namespace PANiXiDA.Core.Application.Querying.Sorting;
 /// <summary>
 /// Validates sorting paths, directions, duplicate fields, and the number of criteria.
 /// </summary>
-public class SortParametersValidator : AbstractValidator<SortParameters>
+public class SortingParametersValidator : AbstractValidator<SortingParameters>
 {
     /// <summary>
     /// The default maximum number of sorting criteria.
@@ -18,7 +18,7 @@ public class SortParametersValidator : AbstractValidator<SortParameters>
     /// </summary>
     /// <param name="maxFields">The positive maximum number of criteria.</param>
     /// <exception cref="ArgumentOutOfRangeException">The maximum is not positive.</exception>
-    public SortParametersValidator(int maxFields = DefaultMaxFields)
+    public SortingParametersValidator(int maxFields = DefaultMaxFields)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFields);
 
@@ -33,8 +33,8 @@ public class SortParametersValidator : AbstractValidator<SortParameters>
                 .WithMessage("Sorting field must be a non-empty path without whitespace, colons, commas, or empty segments.");
 
             field.RuleFor(criterion => criterion.Order)
-                .Must(order => order is SortOrder.Asc or SortOrder.Desc)
-                .WithMessage($"Sort order must be {nameof(SortOrder.Asc)} or {nameof(SortOrder.Desc)}.");
+                .Must(order => order is SortDirection.Asc or SortDirection.Desc)
+                .WithMessage($"Sort order must be {nameof(SortDirection.Asc)} or {nameof(SortDirection.Desc)}.");
         });
 
         RuleFor(parameters => parameters.Fields).Custom((fields, context) =>
@@ -60,7 +60,7 @@ public class SortParametersValidator : AbstractValidator<SortParameters>
 /// Also validates that each criterion belongs to the supplied read model sorting definition.
 /// </summary>
 /// <typeparam name="TReadModel">The read model being sorted.</typeparam>
-public sealed class SortParametersValidator<TReadModel> : SortParametersValidator
+public sealed class SortingParametersValidator<TReadModel> : SortingParametersValidator
 {
     /// <summary>
     /// Creates a validator using a read model definition without runtime property discovery.
@@ -69,7 +69,7 @@ public sealed class SortParametersValidator<TReadModel> : SortParametersValidato
     /// <param name="maxFields">The positive maximum number of criteria.</param>
     /// <exception cref="ArgumentNullException">The definition is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The maximum is not positive.</exception>
-    public SortParametersValidator(SortDefinition<TReadModel> definition, int maxFields = DefaultMaxFields)
+    public SortingParametersValidator(SortDefinition<TReadModel> definition, int maxFields = DefaultMaxFields)
         : base(maxFields)
     {
         ArgumentNullException.ThrowIfNull(definition);

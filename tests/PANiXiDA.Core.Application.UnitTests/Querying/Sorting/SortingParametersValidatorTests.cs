@@ -6,7 +6,7 @@ using PANiXiDA.Core.ResultPattern;
 
 namespace PANiXiDA.Core.Application.UnitTests.Querying.Sorting;
 
-public sealed class SortParametersValidatorTests
+public sealed class SortingParametersValidatorTests
 {
     [Theory(DisplayName = "Validate accepts empty sorting and up to five distinct criteria")]
     [InlineData(0)]
@@ -14,8 +14,8 @@ public sealed class SortParametersValidatorTests
     [InlineData(5)]
     public void Validate_WhenCriteriaAreValid_Succeeds(int count)
     {
-        var parameters = new SortParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
-        var validator = new SortParametersValidator();
+        var parameters = new SortingParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
+        var validator = new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
 
@@ -33,8 +33,8 @@ public sealed class SortParametersValidatorTests
     [InlineData("name,age")]
     public void Validate_WhenPathIsInvalid_ReturnsIndexedFailure(string? field)
     {
-        var parameters = new SortParameters(new SortField(field!));
-        var validator = new SortParametersValidator();
+        var parameters = new SortingParameters(new SortField(field!));
+        var validator = new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
 
@@ -48,8 +48,8 @@ public sealed class SortParametersValidatorTests
     [InlineData(99)]
     public void Validate_WhenOrderIsInvalid_ReturnsIndexedFailure(int order)
     {
-        var validator = new SortParametersValidator();
-        var parameters = new SortParameters(new SortField("name", (SortOrder)order));
+        var validator = new SortingParametersValidator();
+        var parameters = new SortingParameters(new SortField("name", (SortDirection)order));
 
         var result = validator.Validate(parameters);
 
@@ -61,8 +61,8 @@ public sealed class SortParametersValidatorTests
     [Fact(DisplayName = "Validate rejects repeated field paths regardless of casing or direction")]
     public void Validate_WhenFieldIsRepeated_ReturnsDuplicateFailure()
     {
-        var parameters = new SortParameters(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortOrder.Desc));
-        var validator = new SortParametersValidator();
+        var parameters = new SortingParameters(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortDirection.Desc));
+        var validator = new SortingParametersValidator();
 
         var result = validator.Validate(parameters);
 
@@ -77,8 +77,8 @@ public sealed class SortParametersValidatorTests
     [InlineData(1, 2, false)]
     public void Validate_WhenMaximumIsConfigured_UsesIt(int maxFields, int count, bool isValid)
     {
-        var validator = new SortParametersValidator(maxFields);
-        var parameters = new SortParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
+        var validator = new SortingParametersValidator(maxFields);
+        var parameters = new SortingParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
 
         var result = validator.Validate(parameters);
 
@@ -96,7 +96,7 @@ public sealed class SortParametersValidatorTests
     [InlineData(-1)]
     public void Constructor_WhenMaximumIsInvalid_Throws(int maxFields)
     {
-        var action = () => new SortParametersValidator(maxFields);
+        var action = () => new SortingParametersValidator(maxFields);
 
         action.ShouldThrow<ArgumentOutOfRangeException>().ParamName.ShouldBe(nameof(maxFields));
     }
@@ -110,9 +110,9 @@ public sealed class SortParametersValidatorTests
     public void Validate_WhenDefinitionIsProvided_ChecksAllowedFields(string field, bool isValid)
     {
         var definition = new SortDefinition<TestReadModel>("name", "department.name");
-        var validator = new SortParametersValidator<TestReadModel>(definition);
+        var validator = new SortingParametersValidator<TestReadModel>(definition);
 
-        var result = validator.Validate(SortParameters.Ascending(field));
+        var result = validator.Validate(SortingParameters.Ascending(field));
 
         result.IsValid.ShouldBe(isValid);
         if (!isValid)
@@ -126,8 +126,8 @@ public sealed class SortParametersValidatorTests
     [Fact(DisplayName = "Read model validator reports malformed paths once and retains structural rules")]
     public void Validate_WhenDefinitionIsProvided_AppliesStructuralRules()
     {
-        var validator = new SortParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"), maxFields: 1);
-        var parameters = new SortParameters(new SortField("", (SortOrder)99), new SortField("name"));
+        var validator = new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name"), maxFields: 1);
+        var parameters = new SortingParameters(new SortField("", (SortDirection)99), new SortField("name"));
 
         var result = validator.Validate(parameters);
 
@@ -137,19 +137,19 @@ public sealed class SortParametersValidatorTests
     [Fact(DisplayName = "Read model validator requires a definition and accepts empty sorting")]
     public void Constructor_WhenDefinitionIsMissing_Throws()
     {
-        var action = () => new SortParametersValidator<TestReadModel>(null!);
-        var validator = new SortParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>());
+        var action = () => new SortingParametersValidator<TestReadModel>(null!);
+        var validator = new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>());
 
         action.ShouldThrow<ArgumentNullException>().ParamName.ShouldBe("definition");
-        validator.Validate(SortParameters.None).IsValid.ShouldBeTrue();
-        validator.Validate(SortParameters.Ascending("id")).IsValid.ShouldBeFalse();
+        validator.Validate(SortingParameters.None).IsValid.ShouldBeTrue();
+        validator.Validate(SortingParameters.Ascending("id")).IsValid.ShouldBeFalse();
     }
 
     [Fact(DisplayName = "SetValidator preserves nested paths for unsupported and repeated fields")]
     public void SetValidator_WhenFieldsAreInvalid_ReturnsNestedPaths()
     {
         var validator = new SortQueryValidator();
-        var query = new SortQuery(new SortParameters(new SortField("name"), new SortField("NAME"), new SortField("id")));
+        var query = new SortQuery(new SortingParameters(new SortField("name"), new SortField("NAME"), new SortField("id")));
 
         var result = validator.Validate(query);
 
@@ -161,7 +161,7 @@ public sealed class SortParametersValidatorTests
     public async Task BeforeAsync_WhenSortingIsUnsupported_ReturnsFieldMetadata()
     {
         var behavior = new ValidationBehavior<SortQuery, Result>([new SortQueryValidator()]);
-        var query = new SortQuery(SortParameters.Ascending("id"));
+        var query = new SortQuery(SortingParameters.Ascending("id"));
 
         var result = await behavior.BeforeAsync(query, TestContext.Current.CancellationToken);
 
@@ -173,7 +173,7 @@ public sealed class SortParametersValidatorTests
 
     private sealed record TestReadModel(string Name);
 
-    private sealed record SortQuery(SortParameters Sorting) : IRequest<Result>;
+    private sealed record SortQuery(SortingParameters Sorting) : IRequest<Result>;
 
     private sealed class SortQueryValidator : AbstractValidator<SortQuery>
     {
@@ -181,7 +181,7 @@ public sealed class SortParametersValidatorTests
         {
             RuleFor(query => query.Sorting)
                 .NotNull()
-                .SetValidator(new SortParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name")));
+                .SetValidator(new SortingParametersValidator<TestReadModel>(new SortDefinition<TestReadModel>("name")));
         }
     }
 }

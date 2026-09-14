@@ -5,7 +5,7 @@ namespace PANiXiDA.Core.Application.Querying.Sorting;
 /// <summary>
 /// Defines sort directions.
 /// </summary>
-public enum SortOrder
+public enum SortDirection
 {
     /// <summary>
     /// Sorts values in ascending order.

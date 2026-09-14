@@ -18,5 +18,6 @@
     <ItemGroup>
         <Using Include="Xunit" />
         <Using Include="Shouldly" />
+        <Using Include="PANiXiDA.Core.Application.Querying.Sorting.SortDirection" Alias="SortDirection" />
     </ItemGroup>
 </Project>
