@@ -18,7 +18,7 @@ public sealed class SortingParametersValidatorTests
     public void Validate_WhenCriteriaAreValid_Succeeds(int count)
     {
         string[] fields = ["name", "email", "createdAt", "isActive", "role", "department.name"];
-        var parameters = new SortingParameters(fields.Take(count).Select(field => new SortField(field)).ToArray());
+        var parameters = new SortingParameters([.. fields.Take(count).Select(field => new SortField(field))]);
         var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);

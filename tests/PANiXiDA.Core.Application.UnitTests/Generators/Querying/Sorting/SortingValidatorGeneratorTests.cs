@@ -8,10 +8,12 @@ namespace PANiXiDA.Core.Application.UnitTests.Generators.Querying.Sorting;
 
 public sealed class SortingValidatorGeneratorTests
 {
-    private static readonly ImmutableArray<MetadataReference> References = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-        .Split(Path.PathSeparator)
-        .Select(path => MetadataReference.CreateFromFile(path))
-        .ToImmutableArray<MetadataReference>();
+    private static readonly ImmutableArray<MetadataReference> References =
+    [
+        .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Select(path => MetadataReference.CreateFromFile(path))
+    ];
 
     [Fact(DisplayName = "Generator emits inherited and nested CLR paths without JSON aliases")]
     public void Generate_WhenModelHasNestedProperties_UsesScalarClrPaths()
@@ -280,8 +282,11 @@ public sealed class SortingValidatorGeneratorTests
 
     private static string[] Fields(GeneratedSourceResult source)
     {
-        return source.SyntaxTree.GetRoot(TestContext.Current.CancellationToken).DescendantNodes()
-            .OfType<LiteralExpressionSyntax>().Where(literal => literal.IsKind(SyntaxKind.StringLiteralExpression))
-            .Select(literal => literal.Token.ValueText).ToArray();
+        return
+        [
+            .. source.SyntaxTree.GetRoot(TestContext.Current.CancellationToken).DescendantNodes()
+                .OfType<LiteralExpressionSyntax>().Where(literal => literal.IsKind(SyntaxKind.StringLiteralExpression))
+                .Select(literal => literal.Token.ValueText)
+        ];
     }
 }
