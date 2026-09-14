@@ -4,15 +4,19 @@ using FluentValidation.Results;
 namespace PANiXiDA.Core.Application.Querying.Sorting;
 
 /// <summary>
-/// Validates sorting paths, directions, and duplicate fields.
+/// Validates sorting criteria against supported read model field paths.
 /// </summary>
-public class SortingParametersValidator : AbstractValidator<SortingParameters>
+public abstract class SortingParametersValidator : AbstractValidator<SortingParameters>
 {
     /// <summary>
-    /// Creates a structural sorting validator. Empty sorting is valid.
+    /// Creates a validator using supported read model field paths. Empty sorting is valid.
     /// </summary>
-    public SortingParametersValidator()
+    /// <param name="fields">The supported field paths, compared by the supplied set.</param>
+    /// <exception cref="ArgumentNullException">The field set is null.</exception>
+    protected SortingParametersValidator(IReadOnlySet<string> fields)
     {
+        ArgumentNullException.ThrowIfNull(fields);
+
         RuleFor(parameters => parameters.Fields).NotNull();
 
         RuleForEach(parameters => parameters.Fields).NotNull().ChildRules(field =>
@@ -26,13 +30,13 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
                 .WithMessage($"Sort order must be {nameof(SortDirection.Asc)} or {nameof(SortDirection.Desc)}.");
         });
 
-        RuleFor(parameters => parameters.Fields).Custom((fields, context) =>
+        RuleFor(parameters => parameters.Fields).Custom((criteria, context) =>
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            for (var index = 0; index < fields.Length; index++)
+            for (var index = 0; index < criteria.Length; index++)
             {
-                var field = fields[index]?.Field;
+                var field = criteria[index]?.Field;
 
                 if (SortField.IsValidFieldPath(field) && !names.Add(field))
                 {
@@ -42,17 +46,6 @@ public class SortingParametersValidator : AbstractValidator<SortingParameters>
                 }
             }
         }).When(parameters => parameters.Fields is not null);
-    }
-
-    /// <summary>
-    /// Creates a model-specific validator using field paths supplied by generated code.
-    /// </summary>
-    /// <param name="fields">The supported field paths, compared by the supplied set.</param>
-    /// <exception cref="ArgumentNullException">The field set is null.</exception>
-    protected SortingParametersValidator(IReadOnlySet<string> fields)
-        : this()
-    {
-        ArgumentNullException.ThrowIfNull(fields);
 
         RuleForEach(parameters => parameters.Fields)
             .Where(field => field is not null && SortField.IsValidFieldPath(field.Field))

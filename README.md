@@ -23,7 +23,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
-- Immutable sorting criteria, optional default merging, and structural or read-model-specific FluentValidation validators.
+- Immutable sorting criteria, optional default merging, and generated read-model-specific FluentValidation validators.
 
 ## Requirements
 
@@ -229,9 +229,10 @@ metadata, and OpenAPI transformations belong to the HTTP adapter.
 
 ### Sorting Validation
 
-`SortingParametersValidator` rejects null arrays and null criteria and validates
-path syntax, directions, and case-insensitive duplicate paths. Empty sorting is
-valid, and the number of criteria is unrestricted.
+`SortingParametersValidator` is an abstract base with a protected constructor
+accepting supported read model field paths. It rejects null arrays and null criteria
+and validates path syntax, supported fields, directions, and case-insensitive
+duplicate paths. Empty sorting is valid, and the number of criteria is unrestricted.
 
 The package includes a source generator. Every concrete source-declared `IReadModel`
 automatically receives a `<ReadModelName>SortingValidator` in the model's namespace.
@@ -293,8 +294,7 @@ that differ only by case report `PANSG003`.
 
 Errors preserve indexed property paths such as `Sorting.Fields[0].Field` and
 `Sorting.Fields[0].Order`. `ValidationBehavior` carries those paths into Result
-error metadata. The base validator checks structure only; use the generated
-validator to check whether fields belong to the read model.
+error metadata.
 
 This package does not apply sorting to `IQueryable`, determine SQL translatability,
 or guarantee unique ordering for pagination. Those responsibilities belong to the
@@ -463,7 +463,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `CursorPaginationParameters` represents cursor pagination input.
 - `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
 - `SortingParameters` is a positional record with a `SortField[]`, a `SortDirection` per field, and optional default merging.
-- `SortingParametersValidator` validates criterion structure and duplicates.
+- `SortingParametersValidator` is the abstract base for validating criterion structure, supported fields, and duplicates.
 - Generated `<ReadModelName>SortingValidator` classes validate supported CLR paths discovered from `IReadModel` at compile time.
 - `IFilter` identifies application query filter records.
 

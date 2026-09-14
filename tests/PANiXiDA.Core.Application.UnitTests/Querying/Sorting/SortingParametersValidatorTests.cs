@@ -15,11 +15,11 @@ public sealed class SortingParametersValidatorTests
     [InlineData(1)]
     [InlineData(5)]
     [InlineData(6)]
-    [InlineData(10)]
     public void Validate_WhenCriteriaAreValid_Succeeds(int count)
     {
-        var parameters = new SortingParameters(Enumerable.Range(0, count).Select(index => new SortField($"field{index}")).ToArray());
-        var validator = new SortingParametersValidator();
+        string[] fields = ["name", "email", "createdAt", "isActive", "role", "department.name"];
+        var parameters = new SortingParameters(fields.Take(count).Select(field => new SortField(field)).ToArray());
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);
 
@@ -27,27 +27,11 @@ public sealed class SortingParametersValidatorTests
         parameters.Fields.Length.ShouldBe(count);
     }
 
-    [Fact(DisplayName = "Generated read model validator accepts more than five supported fields")]
-    public void Validate_WhenReadModelSortingContainsMoreThanFiveFields_Succeeds()
-    {
-        string[] fields = ["name", "email", "createdAt", "isActive", "role", "department.name"];
-        var parameters = new SortingParameters(fields.Select(field => new SortField(field)).ToArray());
-        var validator = new SortingTestReadModelSortingValidator();
-
-        var result = validator.Validate(parameters);
-
-        result.IsValid.ShouldBeTrue();
-    }
-
-    [Theory(DisplayName = "Validate reports null criteria arrays through FluentValidation")]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Validate_WhenArrayIsNull_ReturnsFieldFailure(bool useReadModel)
+    [Fact(DisplayName = "Validate reports null criteria arrays through FluentValidation")]
+    public void Validate_WhenArrayIsNull_ReturnsFieldFailure()
     {
         var parameters = new SortingParameters(null!);
-        SortingParametersValidator validator = useReadModel
-            ? new SortingTestReadModelSortingValidator()
-            : new SortingParametersValidator();
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);
 
@@ -56,15 +40,11 @@ public sealed class SortingParametersValidatorTests
         failure.ErrorCode.ShouldBe("NotNullValidator");
     }
 
-    [Theory(DisplayName = "Validate reports null criteria and preserves subsequent field indexes")]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Validate_WhenCriterionIsNull_ReturnsIndexedFailures(bool useReadModel)
+    [Fact(DisplayName = "Validate reports null criteria and preserves subsequent field indexes")]
+    public void Validate_WhenCriterionIsNull_ReturnsIndexedFailures()
     {
         var parameters = new SortingParameters([new SortField("name"), null!, new SortField("NAME")]);
-        SortingParametersValidator validator = useReadModel
-            ? new SortingTestReadModelSortingValidator()
-            : new SortingParametersValidator();
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);
 
@@ -83,7 +63,7 @@ public sealed class SortingParametersValidatorTests
     public void Validate_WhenPathIsInvalid_ReturnsIndexedFailure(string? field)
     {
         var parameters = SortingParameters.Of(new SortField(field!));
-        var validator = new SortingParametersValidator();
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);
 
@@ -97,7 +77,7 @@ public sealed class SortingParametersValidatorTests
     [InlineData(99)]
     public void Validate_WhenOrderIsInvalid_ReturnsIndexedFailure(int order)
     {
-        var validator = new SortingParametersValidator();
+        var validator = new SortingTestReadModelSortingValidator();
         var parameters = SortingParameters.Of(new SortField("name", (SortDirection)order));
 
         var result = validator.Validate(parameters);
@@ -111,7 +91,7 @@ public sealed class SortingParametersValidatorTests
     public void Validate_WhenFieldIsRepeated_ReturnsDuplicateFailure()
     {
         var parameters = SortingParameters.Of(new SortField("department.name"), new SortField("DEPARTMENT.Name", SortDirection.Desc));
-        var validator = new SortingParametersValidator();
+        var validator = new SortingTestReadModelSortingValidator();
 
         var result = validator.Validate(parameters);
 
