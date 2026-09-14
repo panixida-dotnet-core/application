@@ -1,7 +1,8 @@
 # PANiXiDA.Core.Application
 
-Application-layer contracts and helpers for .NET 10 services using CQRS and DDD.
-Concrete mediator, persistence, transport, and DI implementations belong to adapters.
+`PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
+
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -13,15 +14,21 @@ Concrete mediator, persistence, transport, and DI implementations belong to adap
 
 ## Features
 
-- CQRS contracts, mediator interfaces, and request behaviors.
-- FluentValidation integration with Result errors.
-- Domain event publishing, unit of work, and repository abstractions.
-- Read models, pagination, limits, and multi-field sorting with generated validators.
+- CQRS request contracts: `ICommand<TResult>`, `IQuery<TResult>`, and `IRequest<TResult>`.
+- Mediator contracts for command/query dispatch and handler implementation.
+- Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
+- Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
+- FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
+- Event bus and event handler abstractions for `DomainEvent` integration.
+- Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- `IReadModel` marker interface for immutable read-side result models.
+- Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
+- Immutable sorting criteria, optional default merging, and generated read-model-specific FluentValidation validators.
 
 ## Requirements
 
 - .NET 10 SDK
-- Nullable reference types recommended
+- Nullable reference types enabled in consuming projects is recommended
 
 ## Installation
 
@@ -33,7 +40,27 @@ Concrete mediator, persistence, transport, and DI implementations belong to adap
 
 ## Basic Usage
 
-### Commands and Queries
+### Command Contract
+
+```csharp
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record PingCommand : ICommand<Result>;
+
+public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
+{
+    public Task<Result> HandleAsync(
+        PingCommand command,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(Result.Success());
+    }
+}
+```
+
+### Query Contract
 
 ```csharp
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
@@ -41,43 +68,90 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.ResultPattern;
 
-public sealed record PingCommand : ICommand<Result>;
 public sealed record NameReadModel(Guid Id, string Name) : IReadModel;
+
 public sealed record GetNameQuery(Guid Id) : IQuery<Result<NameReadModel>>;
 
-public sealed class GetNameQueryHandler : IQueryHandler<GetNameQuery, Result<NameReadModel>>
+public sealed class GetNameQueryHandler
+    : IQueryHandler<GetNameQuery, Result<NameReadModel>>
 {
-    public Task<Result<NameReadModel>> HandleAsync(GetNameQuery query, CancellationToken cancellationToken)
+    public Task<Result<NameReadModel>> HandleAsync(
+        GetNameQuery query,
+        CancellationToken cancellationToken)
     {
-        return Task.FromResult(Result.Success(new NameReadModel(query.Id, "PANiXiDA")));
+        var readModel = new NameReadModel(query.Id, "PANiXiDA");
+
+        return Task.FromResult(Result.Success(readModel));
     }
 }
 ```
 
-Use records for read models and custom `IFilter` implementations. Read contracts
-should expose primitive values and `IReadModel` payloads rather than domain objects.
+Query result payloads should implement `IReadModel`. Collections, pagination
+models, and result wrappers may contain read models, but domain entities,
+aggregate roots, value objects, enumerations, and strongly typed identifiers
+must not cross the read-side boundary.
 
-### Pagination and Limits
+Concrete read models and custom filters should be declared as records.
+Because marker interfaces cannot enforce the declaration kind, consuming
+applications should protect this convention with architecture tests.
+
+### Page-Based Query Result
+
+```csharp
+using PANiXiDA.Core.Application.Querying.Pagination;
+
+var result = PaginationResult<string>.Create(
+    items: ["first", "second"],
+    pageNumber: 1,
+    pageSize: 10,
+    totalCount: 2);
+
+var hasNextPage = result.HasNextPage;
+```
+
+### Cursor-Based Query Result
 
 ```csharp
 using PANiXiDA.Core.Application.Querying.Cursor;
-using PANiXiDA.Core.Application.Querying.Limiting;
-using PANiXiDA.Core.Application.Querying.Pagination;
 
-var page = PaginationResult<string>.Create(
-    items: ["first", "second"], pageNumber: 1, pageSize: 10, totalCount: 2);
-
-var cursorPage = CursorPaginationResult<string>.Create(
-    items: ["first", "second"], limit: 10, nextCursor: "cursor-2", hasNextPage: true);
-
-var limit = new LimitParameters();
+var result = CursorPaginationResult<string>.Create(
+    items: ["first", "second"],
+    limit: 10,
+    nextCursor: "cursor-2",
+    hasNextPage: true);
 ```
 
-`LimitParameters` defaults to 20; `LimitParametersValidator` accepts 1–200.
-`PaginationParametersValidator` requires a positive page number, page size 1–200,
-and an offset fitting in `Int32`. Validate before querying; values are not clamped.
+### Limited Queries
 
-Compose parameter validators into query validators with `NotNull().SetValidator(...)`:
+`LimitParameters` carries the requested result count without pagination and defaults to 20. Its validator
+accepts values from 1 through 200. Constructing the parameters preserves the supplied
+value; validation reports invalid input without clamping it.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Querying.Limiting;
+
+public sealed record GetOptionsQuery(LimitParameters Limit);
+
+public sealed class GetOptionsQueryValidator : AbstractValidator<GetOptionsQuery>
+{
+    public GetOptionsQueryValidator()
+    {
+        RuleFor(query => query.Limit)
+            .NotNull()
+            .SetValidator(new LimitParametersValidator());
+    }
+}
+```
+
+For example, `new GetOptionsQuery(new LimitParameters())` uses the default limit of 20
+and passes validation. An explicit limit overrides the default.
+Use `NotNull()` alongside `SetValidator()` to reject missing parameters.
+
+### Pagination Validation
+
+`PaginationParametersValidator` requires a positive `PageNumber`, a `PageSize` from
+1 through 200, and an offset that fits in `Int32`. Compose it into the query validator:
 
 ```csharp
 using FluentValidation;
@@ -95,6 +169,9 @@ public sealed class GetPageQueryValidator : AbstractValidator<GetPageQuery>
     }
 }
 ```
+
+Validation leaves the supplied parameters unchanged. Existing `Skip` and `Take`
+calculations keep their behavior; validate the parameters before using them in a query.
 
 ### Sorting
 
@@ -160,7 +237,15 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 
 ## Request Behaviors
 
-Register behaviors in pipeline order:
+The package includes reusable mediator behavior implementations for request validation, command transaction orchestration, and domain event publication:
+
+- `ValidationBehavior<TRequest, TResult>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
+- `BeginTransactionBehavior<TCommand, TResult>` starts a transaction before a command handler runs.
+- `PublishDomainEventsBehavior<TRequest, TResult>` publishes domain events collected from tracked aggregate roots after a successful request result and clears tracked events after a failed result or completed successful publication.
+- `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
+- `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
+
+A consuming mediator implementation should register these behaviors in a deterministic order. A typical command pipeline is:
 
 ```text
 before:  ValidationBehavior
@@ -171,13 +256,14 @@ after:   CommitTransactionBehavior
 finally: CleanupTransactionBehavior
 ```
 
-`ValidationBehavior` runs registered FluentValidation validators and preserves error
-field metadata in `Result`. A failed before-stage result stops handler execution.
-The other behaviors manage transactions, domain events, and cleanup.
+The exact registration mechanism depends on the mediator or composition root used by the consuming application.
+A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
+When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
 
 ## Domain Value Validation
 
-`MustBeValidDomainValue` maps domain factory failures to the current property:
+`MustBeValidDomainValue` adds a FluentValidation rule that calls a domain value factory returning `Result<T>`.
+When the factory fails, each result error message is added as a validation failure for the current property.
 
 ```csharp
 using FluentValidation;
@@ -190,7 +276,8 @@ public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCom
 {
     public CreateUserCommandValidator()
     {
-        RuleFor(command => command.Email).MustBeValidDomainValue(Email.Create);
+        RuleFor(command => command.Email)
+            .MustBeValidDomainValue(Email.Create);
     }
 }
 
@@ -208,61 +295,176 @@ public sealed record Email(string Value)
 }
 ```
 
-For complex validation, `MustBeValidDomainResult` preserves `Error.FieldMetadataKey`
-paths; errors without a field are attached to the current rule path.
+`MustBeValidDomainResult` validates several request values with one domain factory and uses each error's
+`Error.FieldMetadataKey` value as the FluentValidation property path. Errors without field metadata fall back
+to the current rule path.
+
+```csharp
+using FluentValidation;
+using PANiXiDA.Core.Application.Validation;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record CreateDamageRangeCommand(
+    int MinimumDamage,
+    int MaximumDamage);
+
+public sealed class CreateDamageRangeCommandValidator
+    : AbstractValidator<CreateDamageRangeCommand>
+{
+    public CreateDamageRangeCommandValidator()
+    {
+        RuleFor(command => command)
+            .MustBeValidDomainResult(command => DamageRange.Create(
+                command.MinimumDamage,
+                command.MaximumDamage));
+    }
+}
+
+public sealed record DamageRange(
+    int MinimumDamage,
+    int MaximumDamage)
+{
+    public static Result<DamageRange> Create(
+        int minimumDamage,
+        int maximumDamage)
+    {
+        if (maximumDamage < minimumDamage)
+        {
+            return Result.Failure<DamageRange>(
+                Error.Validation(
+                        "Maximum damage cannot be less than minimum damage.")
+                    .WithField(nameof(MaximumDamage)));
+        }
+
+        return Result.Success(
+            new DamageRange(minimumDamage, maximumDamage));
+    }
+}
+```
 
 ## Repository Abstraction Ownership
 
-| Contract | Package | Purpose |
-| --- | --- | --- |
-| `IReadRepository<TId>` | Application | Read-side `ExistsByIdAsync` and `AnyAsync`. |
-| `IRepository<TId, TAggregateRoot>` | [Domain](https://github.com/panixida-dotnet-core/domain#repository-abstraction-ownership) | Aggregate persistence. |
+Repository contracts are split by architectural responsibility:
 
-Read repository identifiers should be primitive values such as `Guid`.
-Additional read methods should accept primitive/application parameters and return
+| Contract | Package | Namespace | Responsibility |
+| --- | --- | --- | --- |
+| `IReadRepository<TId>` | `PANiXiDA.Core.Application` | `PANiXiDA.Core.Application.Persistence` | Read-side existence checks used by application queries and validation. |
+| `IRepository<TId, TAggregateRoot>` | [`PANiXiDA.Core.Domain`](https://github.com/panixida-dotnet-core/domain#repository-abstraction-ownership) | `PANiXiDA.Core.Domain.Abstractions` | Loading and persisting aggregate roots through the domain boundary. |
+
+`IReadRepository<TId>` provides `ExistsByIdAsync` and `AnyAsync`.
+Its identifier should be a primitive read-side value such as `Guid`.
+Additional read repository methods may accept primitive values or application
+parameter models composed exclusively from primitive values, and should return
 `IReadModel` payloads, optionally wrapped in collections or pagination models.
+Read repository contracts must not use types from the Domain layer.
+The aggregate repository contract is intentionally not defined by this package; reference `PANiXiDA.Core.Domain` when a repository works with aggregate roots.
 
 ## API Overview
 
-| Area | Main contracts |
-| --- | --- |
-| Messaging | `ICommand`, `IQuery`, `IRequest`, `IMediator`, command/query handlers |
-| Behaviors | `IBeforeRequestBehavior`, `IAfterRequestBehavior`, `IFinallyRequestBehavior` |
-| Domain events | `IEventBus`, `IEventHandler`, `IAggregateTracker` |
-| Persistence | `IUnitOfWork`, `IReadRepository` |
-| Querying | `IReadModel`, `IFilter`, pagination, cursors, limits, sorting |
+### Messaging
+
+- `IMediator` dispatches commands and queries.
+- `ICommandHandler<TCommand, TResult>` handles state-changing requests.
+- `IQueryHandler<TQuery, TResult>` handles read-only requests.
+- `IReadModel` identifies query and read repository result payloads.
+- `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
+- `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
+- `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
+
+### Validation
+
+- `MustBeValidDomainValue` validates a property through a domain factory that returns `Result<T>` and maps failed result errors to FluentValidation failures.
+- `MustBeValidDomainResult` validates a property or request through a domain factory and maps error field metadata to FluentValidation property paths.
+
+### Domain Events
+
+- `IEventBus` publishes domain events.
+- `IEventHandler<TEvent>` handles a specific domain event type.
+- `IAggregateTracker` tracks aggregate roots touched during a request so their domain events can be published and cleared.
+
+### Persistence
+
+- `IUnitOfWork` defines persistence and transaction operations.
+- `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
+- Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
+
+### Querying Models
+
+- `IReadModel` identifies immutable read-side result models.
+- `PaginationParameters` calculates `Skip` and `Take` for page-based reads.
+- `PaginationResult<TItem>` returns page metadata and items.
+- `CursorPaginationParameters` represents cursor pagination input.
+- `CursorPaginationResult<TItem>` returns cursor pagination metadata and items.
+- `SortingParameters` is a positional record with a `SortField[]`, a `SortDirection` per field, and optional default merging.
+- `SortingParametersValidator` is the abstract base for validating criterion structure, supported fields, and duplicates.
+- Generated `<ReadModelName>SortingValidator` classes validate supported CLR paths discovered from `IReadModel` at compile time.
+- `IFilter` identifies application query filter records.
 
 ## Configuration
 
-No runtime configuration is required. Register concrete mediator, persistence,
-event bus, and validation implementations in the consuming application.
+The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, aggregate tracking, and dependency injection registration.
 
 ## Development
 
-Build before formatting a fresh checkout so the formatter can load the generator.
+### Restore
 
 ```bash
 dotnet restore
+```
+
+### Format
+
+Build once before formatting a fresh checkout so the formatter can load the
+source generator and resolve generated validators.
+
+```bash
 dotnet build --no-restore
 dotnet format
+```
+
+### Build
+
+```bash
 dotnet build --configuration Release
+```
+
+### Test
+
+```bash
 dotnet test --configuration Release
+```
+
+### Pack
+
+```bash
 dotnet pack --configuration Release
 ```
 
-CI runs formatting, tests, and mandatory SonarQube analysis. Publishing from `main`
-requires a successful Quality Gate.
+### Continuous integration
+
+Every pull request and push to `main` runs formatting, tests, and mandatory
+SonarQube analysis. Publishing from `main` starts only after the SonarQube
+Quality Gate succeeds.
 
 ## Project Structure
 
 ```text
-src/
-├── PANiXiDA.Core.Application/
-└── PANiXiDA.Core.Application.Generators/
-tests/
-└── PANiXiDA.Core.Application.UnitTests/
+.
+├── src/
+│   ├── PANiXiDA.Core.Application/
+│   └── PANiXiDA.Core.Application.Generators/
+├── tests/
+│   └── PANiXiDA.Core.Application.UnitTests/
+├── Directory.Build.props
+├── Directory.Build.targets
+├── Directory.Packages.props
+├── global.json
+├── version.json
+├── icon.png
+├── LICENSE
+└── README.md
 ```
 
 ## License
 
-[Apache-2.0](LICENSE).
+This project is licensed under the Apache-2.0 license. See the [LICENSE](LICENSE) file for details.
