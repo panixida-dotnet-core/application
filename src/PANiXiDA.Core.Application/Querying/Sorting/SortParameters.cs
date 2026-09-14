@@ -97,6 +97,6 @@ public sealed record SortParameters
         var fields = Fields.Select(static field => field.Field).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var missing = defaults.Fields.Where(field => fields.Add(field.Field)).ToArray();
 
-        return missing.Length == 0 ? this : new SortParameters([.. Fields, .. missing]);
+        return missing.Length == 0 ? this : Of([.. Fields, .. missing]);
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PANiXiDA.Core.Application.Querying.Sorting;
 
@@ -6,6 +7,8 @@ namespace PANiXiDA.Core.Application.Querying.Sorting;
 /// Contains public sortable field paths for a read model without inspecting its runtime type.
 /// </summary>
 /// <typeparam name="TReadModel">The read model described by these fields.</typeparam>
+[SuppressMessage("Major Code Smell", "S2326:Unused type parameters should be removed",
+    Justification = "The type parameter binds field metadata to its read model for typed validation and dependency injection.")]
 public sealed class SortDefinition<TReadModel>
 {
     /// <summary>
