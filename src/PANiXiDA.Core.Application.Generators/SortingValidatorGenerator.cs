@@ -34,11 +34,16 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
     /// <param name="context">The incremental generator initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        var readModel = context.CompilationProvider.Select(static (compilation, _) =>
+            compilation.GetTypeByMetadataName("PANiXiDA.Core.Application.Querying.IReadModel"));
+
         var models = context.SyntaxProvider.CreateSyntaxProvider(
             static (node, _) => node is TypeDeclarationSyntax,
             static (syntax, cancellationToken) => syntax.SemanticModel.GetDeclaredSymbol(syntax.Node, cancellationToken) as INamedTypeSymbol)
-            .Where(static model => model is { IsAbstract: false }
-                && model.AllInterfaces.Any(contract => contract.ToDisplayString() == "PANiXiDA.Core.Application.Querying.IReadModel"));
+            .Combine(readModel)
+            .Where(static pair => pair.Left is { IsAbstract: false } && pair.Right is not null
+                && pair.Left.AllInterfaces.Any(contract => SymbolEqualityComparer.Default.Equals(contract, pair.Right)))
+            .Select(static (pair, _) => pair.Left);
 
         context.RegisterSourceOutput(models.Collect(), static (output, symbols) => Generate(output, symbols));
     }

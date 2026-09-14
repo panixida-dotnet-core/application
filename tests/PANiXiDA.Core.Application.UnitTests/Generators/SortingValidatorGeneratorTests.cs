@@ -150,6 +150,43 @@ public sealed class SortingValidatorGeneratorTests
         result.Diagnostics.ShouldBeEmpty();
     }
 
+    [Fact(DisplayName = "Generator distinguishes same-named interfaces from different assemblies")]
+    public void Generate_WhenAnotherAssemblyDefinesSameInterface_UsesResolvedContract()
+    {
+        var foreignAssembly = CreateCompilation("namespace PANiXiDA.Core.Application.Querying { public interface IReadModel; }")
+            .WithAssemblyName("ForeignContracts");
+        using var image = new MemoryStream();
+        foreignAssembly.Emit(image, cancellationToken: TestContext.Current.CancellationToken).Success.ShouldBeTrue();
+        var reference = MetadataReference.CreateFromImage(image.ToArray(),
+            MetadataReferenceProperties.Assembly.WithAliases(["foreign"]));
+        var foreignModel = CSharpSyntaxTree.ParseText("""
+            extern alias foreign;
+            public record ForeignModel(string Name) : foreign::PANiXiDA.Core.Application.Querying.IReadModel;
+            """, cancellationToken: TestContext.Current.CancellationToken);
+        var compilation = CreateCompilation("public record Model(string Name) : IReadModel;")
+            .AddReferences(reference).AddSyntaxTrees(foreignModel);
+
+        var result = Generate(compilation);
+
+        result.GeneratedSources.ShouldHaveSingleItem().HintName.ShouldBe("ModelSortingValidator.g.cs");
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "Generator emits no output when the application read model contract is unavailable")]
+    public void Generate_WhenContractIsUnavailable_ProducesNoSource()
+    {
+        var tree = CSharpSyntaxTree.ParseText("public interface IReadModel; public record Model(string Name) : IReadModel;",
+            cancellationToken: TestContext.Current.CancellationToken);
+        var compilation = CSharpCompilation.Create("WithoutApplication", [tree],
+            References.Where(reference => Path.GetFileName(reference.Display) != "PANiXiDA.Core.Application.dll"),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var result = Generate(compilation);
+
+        result.GeneratedSources.ShouldBeEmpty();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
     [Fact(DisplayName = "Generator respects namespaces, nested model names, and accessibility")]
     public void Generate_WhenModelNamesRepeatInDifferentScopes_EmitsDistinctValidators()
     {
@@ -221,8 +258,13 @@ public sealed class SortingValidatorGeneratorTests
 
     private static GeneratorRunResult Generate(string source)
     {
+        return Generate(CreateCompilation(source));
+    }
+
+    private static GeneratorRunResult Generate(CSharpCompilation input)
+    {
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new SortingValidatorGenerator());
-        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out var compilation, out _, TestContext.Current.CancellationToken);
+        driver = driver.RunGeneratorsAndUpdateCompilation(input, out var compilation, out _, TestContext.Current.CancellationToken);
         compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ShouldBeEmpty();
         var result = driver.GetRunResult().Results.ShouldHaveSingleItem();
         result.Exception.ShouldBeNull();
