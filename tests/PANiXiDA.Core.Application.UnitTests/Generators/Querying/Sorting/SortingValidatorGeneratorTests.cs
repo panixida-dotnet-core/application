@@ -117,16 +117,29 @@ public sealed class SortingValidatorGeneratorTests
         Fields(result.GeneratedSources.ShouldHaveSingleItem()).ShouldBe(["Department.Name", "Department.Number", "External.Limit", "Inherited", "Value.Item"]);
     }
 
-    [Fact(DisplayName = "Generator terminates recursive and expanding generic paths")]
+    [Fact(DisplayName = "Generator includes scalar fields at recursive boundaries and stops further descent")]
     public void Generate_WhenPropertiesAreRecursive_StopsAtRepeatedTypeDefinitions()
     {
         var result = Generate("""
             public record Node(string Name, Node? Parent);
             public record Recursive<T>(string Name, Recursive<System.Collections.Generic.List<T>>? Next);
-            public record Model(string Name, Model? Parent, Node Node, Recursive<int> Recursive) : IReadModel;
+            public record Model(string Name, Model? Parent, Model? Other, Node Node, Recursive<int> Recursive) : IReadModel;
             """);
 
-        Fields(result.GeneratedSources.ShouldHaveSingleItem()).ShouldBe(["Name", "Node.Name", "Recursive.Name"]);
+        Fields(result.GeneratedSources.ShouldHaveSingleItem()).ShouldBe(
+            ["Name", "Node.Name", "Node.Parent.Name", "Other.Name", "Parent.Name", "Recursive.Name", "Recursive.Next.Name"]);
+    }
+
+    [Fact(DisplayName = "Generator includes scalar fields when a nested model refers back to the root")]
+    public void Generate_WhenPropertiesFormMutualCycle_IncludesBoundaryFields()
+    {
+        var result = Generate("""
+            public record Department(string Name, Model? Owner);
+            public record Model(string Name, Department? Department, Department? Other) : IReadModel;
+            """);
+
+        Fields(result.GeneratedSources.ShouldHaveSingleItem()).ShouldBe(
+            ["Department.Name", "Department.Owner.Name", "Name", "Other.Name", "Other.Owner.Name"]);
     }
 
     [Fact(DisplayName = "Generator emits one validator for partial records and ignores non-read-model types")]

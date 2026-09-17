@@ -230,7 +230,7 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 
 - Paths use public scalar CLR properties, including inherited and nested properties.
   `name` and `nameof(UserReadModel.Name)` are equivalent; JSON renames are ignored.
-- Collections, indexers, unreadable properties, and recursive branches are excluded.
+- Collections, indexers, and unreadable properties are excluded. At the first repeated type, scalar fields such as `manager.name` remain available; further nesting stops.
   Generic roots and ambiguous names produce compiler errors.
 - Register the query validator in the application's validation pipeline.
   Applying sorting to `IQueryable` belongs to the persistence adapter.

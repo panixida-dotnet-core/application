@@ -115,10 +115,7 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
     private static void CollectPaths(INamedTypeSymbol model, string prefix, HashSet<INamedTypeSymbol> ancestors,
         List<string> paths, CancellationToken cancellationToken)
     {
-        if (!ancestors.Add(model.OriginalDefinition))
-        {
-            return;
-        }
+        var canDescend = ancestors.Add(model.OriginalDefinition);
 
         foreach (var property in GetProperties(model))
         {
@@ -142,7 +139,7 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
             else if (type is INamedTypeSymbol nested)
             {
                 var ns = nested.ContainingNamespace.ToDisplayString();
-                if (nested.SpecialType != SpecialType.System_Collections_IEnumerable
+                if (canDescend && nested.SpecialType != SpecialType.System_Collections_IEnumerable
                     && !nested.AllInterfaces.Any(contract => contract.SpecialType == SpecialType.System_Collections_IEnumerable)
                     && ns != "System" && !ns.StartsWith("System.", StringComparison.Ordinal))
                 {
@@ -151,7 +148,10 @@ public sealed class SortingValidatorGenerator : IIncrementalGenerator
             }
         }
 
-        ancestors.Remove(model.OriginalDefinition);
+        if (canDescend)
+        {
+            ancestors.Remove(model.OriginalDefinition);
+        }
     }
 
     private static IEnumerable<IPropertySymbol> GetProperties(INamedTypeSymbol model)
