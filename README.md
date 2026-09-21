@@ -406,6 +406,14 @@ The package does not require runtime configuration. Consumers provide concrete i
 
 ## Development
 
+### Native AOT
+
+Native AOT and trimming analyzers are enabled for the runtime library. Sorting
+field discovery runs at compile time; the source generator is not a runtime dependency.
+FluentValidation still uses expression trees and member metadata at runtime.
+Full Native AOT compatibility must be verified in the consuming application,
+including its validators and infrastructure implementations.
+
 ### Restore
 
 ```bash
