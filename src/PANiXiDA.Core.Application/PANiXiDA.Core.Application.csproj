@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <IsPackable>true</IsPackable>
-        <EnableAotAnalyzer>true</EnableAotAnalyzer>
-        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <IsAotCompatible>true</IsAotCompatible>
 
         <AssemblyName>PANiXiDA.Core.Application</AssemblyName>
 
