@@ -14,36 +14,36 @@ public sealed class SchedulerContractTests
     ];
 
     [Theory(DisplayName = "Scheduler accepts supported message types for delayed and timed delivery")]
-    [InlineData("Command", "Command")]
-    [InlineData("Command", "CommandWithResult")]
-    [InlineData("Event", "Event")]
-    public void Schedule_WhenMessageMatchesContract_Compiles(string messageKind, string messageType)
+    [InlineData("Command")]
+    [InlineData("CommandWithResult")]
+    [InlineData("Event")]
+    [InlineData("ICommand<Result>")]
+    [InlineData("ICommand<Result<Guid>>")]
+    [InlineData("DomainEvent")]
+    public void Schedule_WhenMessageMatchesContract_Compiles(string messageType)
     {
-        var source = CreateConsumerSource(messageKind, messageType);
+        var source = CreateConsumerSource(messageType);
 
         var errors = GetCompilationErrors(source);
 
         errors.ShouldBeEmpty();
     }
 
-    [Theory(DisplayName = "Scheduler rejects queries, unrelated messages, and the other message kind")]
-    [InlineData("Command", "Query")]
-    [InlineData("Command", "Event")]
-    [InlineData("Command", "UnrelatedMessage")]
-    [InlineData("Event", "Query")]
-    [InlineData("Event", "Command")]
-    [InlineData("Event", "UnrelatedMessage")]
-    public void Schedule_WhenMessageDoesNotMatchContract_FailsToCompile(string messageKind, string messageType)
+    [Theory(DisplayName = "Scheduler rejects queries, unrelated messages, and untyped objects")]
+    [InlineData("Query")]
+    [InlineData("UnrelatedMessage")]
+    [InlineData("object")]
+    public void Schedule_WhenMessageDoesNotMatchContract_FailsToCompile(string messageType)
     {
-        var source = CreateConsumerSource(messageKind, messageType);
+        var source = CreateConsumerSource(messageType);
 
         var errors = GetCompilationErrors(source);
 
         errors.Length.ShouldBe(2);
-        errors.ShouldAllBe(error => error.Id == "CS0311");
+        errors.ShouldAllBe(error => error.Id == "CS1503");
     }
 
-    private static string CreateConsumerSource(string messageKind, string messageType)
+    private static string CreateConsumerSource(string messageType)
     {
         return $$"""
             using System;
@@ -67,8 +67,8 @@ public sealed class SchedulerContractTests
                     {{messageType}} message,
                     CancellationToken cancellationToken)
                 {
-                    await scheduler.Schedule{{messageKind}}Async(message, TimeSpan.FromMinutes(15), cancellationToken);
-                    await scheduler.Schedule{{messageKind}}AtAsync(message, DateTimeOffset.UtcNow.AddDays(1), cancellationToken);
+                    await scheduler.ScheduleAsync(message, TimeSpan.FromMinutes(15), cancellationToken);
+                    await scheduler.ScheduleAtAsync(message, DateTimeOffset.UtcNow.AddDays(1), cancellationToken);
                 }
             }
             """;

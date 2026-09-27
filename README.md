@@ -20,7 +20,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
-- A shared scheduler contract with typed command and domain event methods for delayed delivery or delivery at a specified time.
+- A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -65,7 +65,7 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
 
 `IScheduler` schedules commands for deferred dispatch and domain events for deferred
 publication. It is defined in `PANiXiDA.Core.Application.Messaging.Scheduling` and
-provides separate typed methods for commands and events, with a non-negative delay
+provides typed overloads for commands and events, with a non-negative delay
 or an absolute `DateTimeOffset`.
 
 ```csharp
@@ -83,7 +83,7 @@ public sealed class OrderScheduling(IScheduler scheduler)
         Guid orderId,
         CancellationToken cancellationToken)
     {
-        await scheduler.ScheduleCommandAsync(
+        await scheduler.ScheduleAsync(
             new CheckPaymentCommand(orderId),
             TimeSpan.FromMinutes(15),
             cancellationToken);
@@ -94,18 +94,19 @@ public sealed class OrderScheduling(IScheduler scheduler)
         DateTimeOffset publishAt,
         CancellationToken cancellationToken)
     {
-        return scheduler.ScheduleEventAtAsync(occurredEvent, publishAt, cancellationToken);
+        return scheduler.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
     }
 }
 ```
 
-Use `ScheduleCommandAsync` and `ScheduleCommandAtAsync` for commands, or
-`ScheduleEventAsync` and `ScheduleEventAtAsync` for events. The requested time is
+Use `ScheduleAsync` for a delay and `ScheduleAtAsync` for an absolute time.
+Each method has overloads accepting `ICommand<Result>` and `DomainEvent`;
+the compiler selects the overload from the argument type. The requested time is
 the earliest delivery time, not a guarantee of exact execution time.
 Scheduling does not wait for handlers or return a command execution result.
-Command constraints follow `ICommand<Result>`; covariance also permits commands
+The command overloads accept `ICommand<Result>`; covariance also permits commands
 returning `Result<T>`, but their results are not returned to the scheduling caller.
-Event constraints match `IEventBus` and accept types derived from `DomainEvent`.
+The event overloads match `IEventBus` and accept types derived from `DomainEvent`.
 
 An event must describe a fact that has already occurred. Scheduling only delays
 its publication; it does not change the event identifier or occurrence timestamp.
@@ -424,7 +425,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Messaging
 
 - `IMediator` dispatches commands and queries.
-- `IScheduler` schedules command dispatch and domain event publication after a delay or at a specified time through separate typed methods.
+- `IScheduler` schedules command dispatch and domain event publication through typed `ScheduleAsync` and `ScheduleAtAsync` overloads.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
