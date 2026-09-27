@@ -13,29 +13,29 @@ public sealed class SchedulerContractTests
             .Select(path => MetadataReference.CreateFromFile(path))
     ];
 
-    [Theory(DisplayName = "Schedulers accept their supported message types for both scheduling methods")]
-    [InlineData("ICommandScheduler", "Command")]
-    [InlineData("ICommandScheduler", "CommandWithResult")]
-    [InlineData("IEventScheduler", "Event")]
-    public void Schedule_WhenMessageMatchesContract_Compiles(string schedulerType, string messageType)
+    [Theory(DisplayName = "Scheduler accepts supported message types for delayed and timed delivery")]
+    [InlineData("Command", "Command")]
+    [InlineData("Command", "CommandWithResult")]
+    [InlineData("Event", "Event")]
+    public void Schedule_WhenMessageMatchesContract_Compiles(string messageKind, string messageType)
     {
-        var source = CreateConsumerSource(schedulerType, messageType);
+        var source = CreateConsumerSource(messageKind, messageType);
 
         var errors = GetCompilationErrors(source);
 
         errors.ShouldBeEmpty();
     }
 
-    [Theory(DisplayName = "Schedulers reject queries, unrelated messages, and the other message kind")]
-    [InlineData("ICommandScheduler", "Query")]
-    [InlineData("ICommandScheduler", "Event")]
-    [InlineData("ICommandScheduler", "UnrelatedMessage")]
-    [InlineData("IEventScheduler", "Query")]
-    [InlineData("IEventScheduler", "Command")]
-    [InlineData("IEventScheduler", "UnrelatedMessage")]
-    public void Schedule_WhenMessageDoesNotMatchContract_FailsToCompile(string schedulerType, string messageType)
+    [Theory(DisplayName = "Scheduler rejects queries, unrelated messages, and the other message kind")]
+    [InlineData("Command", "Query")]
+    [InlineData("Command", "Event")]
+    [InlineData("Command", "UnrelatedMessage")]
+    [InlineData("Event", "Query")]
+    [InlineData("Event", "Command")]
+    [InlineData("Event", "UnrelatedMessage")]
+    public void Schedule_WhenMessageDoesNotMatchContract_FailsToCompile(string messageKind, string messageType)
     {
-        var source = CreateConsumerSource(schedulerType, messageType);
+        var source = CreateConsumerSource(messageKind, messageType);
 
         var errors = GetCompilationErrors(source);
 
@@ -43,7 +43,7 @@ public sealed class SchedulerContractTests
         errors.ShouldAllBe(error => error.Id == "CS0311");
     }
 
-    private static string CreateConsumerSource(string schedulerType, string messageType)
+    private static string CreateConsumerSource(string messageKind, string messageType)
     {
         return $$"""
             using System;
@@ -63,12 +63,12 @@ public sealed class SchedulerContractTests
             public static class Consumer
             {
                 public static async Task ScheduleAsync(
-                    {{schedulerType}} scheduler,
+                    IScheduler scheduler,
                     {{messageType}} message,
                     CancellationToken cancellationToken)
                 {
-                    await scheduler.ScheduleAsync(message, TimeSpan.FromMinutes(15), cancellationToken);
-                    await scheduler.ScheduleAtAsync(message, DateTimeOffset.UtcNow.AddDays(1), cancellationToken);
+                    await scheduler.Schedule{{messageKind}}Async(message, TimeSpan.FromMinutes(15), cancellationToken);
+                    await scheduler.Schedule{{messageKind}}AtAsync(message, DateTimeOffset.UtcNow.AddDays(1), cancellationToken);
                 }
             }
             """;

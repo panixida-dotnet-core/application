@@ -20,7 +20,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
-- Separate command and domain event scheduler contracts for delayed delivery or delivery at a specified time.
+- A shared scheduler contract with typed command and domain event methods for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -35,7 +35,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="4.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="4.1.0" />
 </ItemGroup>
 ```
 
@@ -63,9 +63,9 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
 
 ### Scheduling Commands and Events
 
-`ICommandScheduler` schedules commands for deferred dispatch; `IEventScheduler`
-schedules domain events for deferred publication. Both contracts are defined in
-`PANiXiDA.Core.Application.Messaging.Scheduling` and support a non-negative delay
+`IScheduler` schedules commands for deferred dispatch and domain events for deferred
+publication. It is defined in `PANiXiDA.Core.Application.Messaging.Scheduling` and
+provides separate typed methods for commands and events, with a non-negative delay
 or an absolute `DateTimeOffset`.
 
 ```csharp
@@ -77,15 +77,13 @@ using PANiXiDA.Core.ResultPattern;
 public sealed record CheckPaymentCommand(Guid OrderId) : ICommand<Result>;
 public sealed record OrderCreatedEvent(Guid OrderId) : DomainEvent;
 
-public sealed class OrderScheduling(
-    ICommandScheduler commands,
-    IEventScheduler events)
+public sealed class OrderScheduling(IScheduler scheduler)
 {
     public async Task SchedulePaymentCheckAsync(
         Guid orderId,
         CancellationToken cancellationToken)
     {
-        await commands.ScheduleAsync(
+        await scheduler.ScheduleCommandAsync(
             new CheckPaymentCommand(orderId),
             TimeSpan.FromMinutes(15),
             cancellationToken);
@@ -96,13 +94,14 @@ public sealed class OrderScheduling(
         DateTimeOffset publishAt,
         CancellationToken cancellationToken)
     {
-        return events.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
+        return scheduler.ScheduleEventAtAsync(occurredEvent, publishAt, cancellationToken);
     }
 }
 ```
 
-Both schedulers expose `ScheduleAsync` and `ScheduleAtAsync`. The requested time
-is the earliest delivery time, not a guarantee of exact execution time.
+Use `ScheduleCommandAsync` and `ScheduleCommandAtAsync` for commands, or
+`ScheduleEventAsync` and `ScheduleEventAtAsync` for events. The requested time is
+the earliest delivery time, not a guarantee of exact execution time.
 Scheduling does not wait for handlers or return a command execution result.
 Command constraints follow `ICommand<Result>`; covariance also permits commands
 returning `Result<T>`, but their results are not returned to the scheduling caller.
@@ -115,11 +114,11 @@ an event only when the condition is met. Delay event publication only when all
 of its intended subscribers should receive the fact later; a delayed action for
 one subscriber can instead be modeled as a scheduled command.
 
-These interfaces provide no scheduler implementation or registration. Infrastructure
+The interface provides no scheduler implementation or registration. Infrastructure
 adapters define persistence, transaction commit, and delivery guarantees, and must
 validate null messages and negative delays. Cancellation tokens apply to scheduling;
 they do not cancel messages that have already been scheduled. Queries, recurring
-schedules, and cancellation or rescheduling of stored messages are outside these contracts.
+schedules, and cancellation or rescheduling of stored messages are outside this contract.
 
 ### Query Contract
 
@@ -425,8 +424,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Messaging
 
 - `IMediator` dispatches commands and queries.
-- `ICommandScheduler` schedules command dispatch after a delay or at a specified time.
-- `IEventScheduler` schedules domain event publication after a delay or at a specified time.
+- `IScheduler` schedules command dispatch and domain event publication after a delay or at a specified time through separate typed methods.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
