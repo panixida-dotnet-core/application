@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -20,6 +20,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
+- A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -34,7 +35,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="4.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="4.1.0" />
 </ItemGroup>
 ```
 
@@ -59,6 +60,35 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
     }
 }
 ```
+
+### Scheduling
+
+`IScheduler` schedules commands and domain events using a delay (`ScheduleAsync`)
+or an absolute time (`ScheduleAtAsync`). Overloads are selected by message type.
+
+```csharp
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Scheduling;
+using PANiXiDA.Core.Domain.DomainEvents;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed class OrderScheduling(IScheduler scheduler)
+{
+    public async Task ScheduleAsync(
+        ICommand<Result> command,
+        DomainEvent occurredEvent,
+        DateTimeOffset publishAt,
+        CancellationToken cancellationToken)
+    {
+        await scheduler.ScheduleAsync(command, TimeSpan.FromMinutes(15), cancellationToken);
+        await scheduler.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
+    }
+}
+```
+
+Scheduling does not wait for handlers or return command results. Events must describe
+facts that have already occurred; only their publication is delayed. Infrastructure
+adapters provide the implementation and define persistence and delivery guarantees.
 
 ### Query Contract
 
@@ -364,6 +394,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Messaging
 
 - `IMediator` dispatches commands and queries.
+- `IScheduler` schedules command dispatch and domain event publication through typed `ScheduleAsync` and `ScheduleAtAsync` overloads.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
@@ -402,7 +433,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ## Configuration
 
-The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, aggregate tracking, and dependency injection registration.
+The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, and dependency injection registration.
 
 ## Development
 
