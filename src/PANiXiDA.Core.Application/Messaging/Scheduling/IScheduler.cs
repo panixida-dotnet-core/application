@@ -28,20 +28,6 @@ public interface IScheduler
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Schedules a command for dispatch at or after the specified time.
-    /// </summary>
-    /// <param name="command">The command to dispatch.</param>
-    /// <param name="deliverAt">The earliest requested dispatch time.</param>
-    /// <param name="cancellationToken">The token used to cancel scheduling, not subsequent command execution.</param>
-    /// <returns>A task that represents the scheduling operation.</returns>
-    /// <exception cref="ArgumentNullException">The command is <see langword="null"/>.</exception>
-    /// <exception cref="OperationCanceledException">Scheduling is canceled.</exception>
-    Task ScheduleAtAsync(
-        ICommand<Result> command,
-        DateTimeOffset deliverAt,
-        CancellationToken cancellationToken);
-
-    /// <summary>
     /// Schedules a domain event for publication after the specified delay.
     /// </summary>
     /// <param name="event">The domain event to publish.</param>
@@ -54,6 +40,20 @@ public interface IScheduler
     Task ScheduleAsync(
         DomainEvent @event,
         TimeSpan delay,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Schedules a command for dispatch at or after the specified time.
+    /// </summary>
+    /// <param name="command">The command to dispatch.</param>
+    /// <param name="deliverAt">The earliest requested dispatch time.</param>
+    /// <param name="cancellationToken">The token used to cancel scheduling, not subsequent command execution.</param>
+    /// <returns>A task that represents the scheduling operation.</returns>
+    /// <exception cref="ArgumentNullException">The command is <see langword="null"/>.</exception>
+    /// <exception cref="OperationCanceledException">Scheduling is canceled.</exception>
+    Task ScheduleAtAsync(
+        ICommand<Result> command,
+        DateTimeOffset deliverAt,
         CancellationToken cancellationToken);
 
     /// <summary>
