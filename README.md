@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -20,6 +20,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
+- Separate command and domain event scheduler contracts for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -59,6 +60,66 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
     }
 }
 ```
+
+### Scheduling Commands and Events
+
+`ICommandScheduler` schedules commands for deferred dispatch; `IEventScheduler`
+schedules domain events for deferred publication. Both contracts are defined in
+`PANiXiDA.Core.Application.Messaging.Scheduling` and support a non-negative delay
+or an absolute `DateTimeOffset`.
+
+```csharp
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Scheduling;
+using PANiXiDA.Core.Domain.DomainEvents;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record CheckPaymentCommand(Guid OrderId) : ICommand<Result>;
+public sealed record OrderCreatedEvent(Guid OrderId) : DomainEvent;
+
+public sealed class OrderScheduling(
+    ICommandScheduler commands,
+    IEventScheduler events)
+{
+    public async Task SchedulePaymentCheckAsync(
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        await commands.ScheduleAsync(
+            new CheckPaymentCommand(orderId),
+            TimeSpan.FromMinutes(15),
+            cancellationToken);
+    }
+
+    public Task ScheduleEventPublicationAsync(
+        OrderCreatedEvent occurredEvent,
+        DateTimeOffset publishAt,
+        CancellationToken cancellationToken)
+    {
+        return events.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
+    }
+}
+```
+
+Both schedulers expose `ScheduleAsync` and `ScheduleAtAsync`. The requested time
+is the earliest delivery time, not a guarantee of exact execution time.
+Scheduling does not wait for handlers or return a command execution result.
+Command constraints follow `ICommand<Result>`; covariance also permits commands
+returning `Result<T>`, but their results are not returned to the scheduling caller.
+Event constraints match `IEventBus` and accept types derived from `DomainEvent`.
+
+An event must describe a fact that has already occurred. Scheduling only delays
+its publication; it does not change the event identifier or occurrence timestamp.
+For a future condition, schedule a command that checks current state and raises
+an event only when the condition is met. Delay event publication only when all
+of its intended subscribers should receive the fact later; a delayed action for
+one subscriber can instead be modeled as a scheduled command.
+
+These interfaces provide no scheduler implementation or registration. Infrastructure
+adapters define persistence, transaction commit, and delivery guarantees, and must
+validate null messages and negative delays. Cancellation tokens apply to scheduling;
+they do not cancel messages that have already been scheduled. Queries, recurring
+schedules, and cancellation or rescheduling of stored messages are outside these contracts.
 
 ### Query Contract
 
@@ -364,6 +425,8 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Messaging
 
 - `IMediator` dispatches commands and queries.
+- `ICommandScheduler` schedules command dispatch after a delay or at a specified time.
+- `IEventScheduler` schedules domain event publication after a delay or at a specified time.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
@@ -402,7 +465,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ## Configuration
 
-The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, aggregate tracking, and dependency injection registration.
+The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, and dependency injection registration.
 
 ## Development
 
