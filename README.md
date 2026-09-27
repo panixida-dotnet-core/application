@@ -61,12 +61,10 @@ public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
 }
 ```
 
-### Scheduling Commands and Events
+### Scheduling
 
-`IScheduler` schedules commands for deferred dispatch and domain events for deferred
-publication. It is defined in `PANiXiDA.Core.Application.Messaging.Scheduling` and
-provides typed overloads for commands and events, with a non-negative delay
-or an absolute `DateTimeOffset`.
+`IScheduler` schedules commands and domain events using a delay (`ScheduleAsync`)
+or an absolute time (`ScheduleAtAsync`). Overloads are selected by message type.
 
 ```csharp
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
@@ -74,52 +72,23 @@ using PANiXiDA.Core.Application.Messaging.Scheduling;
 using PANiXiDA.Core.Domain.DomainEvents;
 using PANiXiDA.Core.ResultPattern;
 
-public sealed record CheckPaymentCommand(Guid OrderId) : ICommand<Result>;
-public sealed record OrderCreatedEvent(Guid OrderId) : DomainEvent;
-
 public sealed class OrderScheduling(IScheduler scheduler)
 {
-    public async Task SchedulePaymentCheckAsync(
-        Guid orderId,
-        CancellationToken cancellationToken)
-    {
-        await scheduler.ScheduleAsync(
-            new CheckPaymentCommand(orderId),
-            TimeSpan.FromMinutes(15),
-            cancellationToken);
-    }
-
-    public Task ScheduleEventPublicationAsync(
-        OrderCreatedEvent occurredEvent,
+    public async Task ScheduleAsync(
+        ICommand<Result> command,
+        DomainEvent occurredEvent,
         DateTimeOffset publishAt,
         CancellationToken cancellationToken)
     {
-        return scheduler.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
+        await scheduler.ScheduleAsync(command, TimeSpan.FromMinutes(15), cancellationToken);
+        await scheduler.ScheduleAtAsync(occurredEvent, publishAt, cancellationToken);
     }
 }
 ```
 
-Use `ScheduleAsync` for a delay and `ScheduleAtAsync` for an absolute time.
-Each method has overloads accepting `ICommand<Result>` and `DomainEvent`;
-the compiler selects the overload from the argument type. The requested time is
-the earliest delivery time, not a guarantee of exact execution time.
-Scheduling does not wait for handlers or return a command execution result.
-The command overloads accept `ICommand<Result>`; covariance also permits commands
-returning `Result<T>`, but their results are not returned to the scheduling caller.
-The event overloads match `IEventBus` and accept types derived from `DomainEvent`.
-
-An event must describe a fact that has already occurred. Scheduling only delays
-its publication; it does not change the event identifier or occurrence timestamp.
-For a future condition, schedule a command that checks current state and raises
-an event only when the condition is met. Delay event publication only when all
-of its intended subscribers should receive the fact later; a delayed action for
-one subscriber can instead be modeled as a scheduled command.
-
-The interface provides no scheduler implementation or registration. Infrastructure
-adapters define persistence, transaction commit, and delivery guarantees, and must
-validate null messages and negative delays. Cancellation tokens apply to scheduling;
-they do not cancel messages that have already been scheduled. Queries, recurring
-schedules, and cancellation or rescheduling of stored messages are outside this contract.
+Scheduling does not wait for handlers or return command results. Events must describe
+facts that have already occurred; only their publication is delayed. Infrastructure
+adapters provide the implementation and define persistence and delivery guarantees.
 
 ### Query Contract
 
