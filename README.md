@@ -271,9 +271,11 @@ The package includes reusable mediator behavior implementations for request vali
 
 - `ValidationBehavior<TRequest, TResult>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
 - `BeginTransactionBehavior<TCommand, TResult>` starts a transaction before a command handler runs.
-- `PublishDomainEventsBehavior<TRequest, TResult>` publishes domain events collected from tracked aggregate roots after a successful request result and clears tracked events after a failed result or completed successful publication.
+- `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
+
+Domain event publication and transaction behaviors require `ICommand<TResult>` and do not apply to `IQuery<TResult>` or plain `IRequest<TResult>` implementations. Query pipelines retain request validation and exclude these command-only behaviors. Directly closing `PublishDomainEventsBehavior` for a query or plain request is no longer supported.
 
 A consuming mediator implementation should register these behaviors in a deterministic order. A typical command pipeline is:
 
