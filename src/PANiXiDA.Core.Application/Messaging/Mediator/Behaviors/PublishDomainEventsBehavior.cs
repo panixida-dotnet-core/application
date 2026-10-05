@@ -6,27 +6,27 @@ using PANiXiDA.Core.Application.Persistence;
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 
 /// <summary>
-/// Publishes domain events collected from tracked aggregate roots after a successful request result.
+/// Publishes domain events collected from tracked aggregate roots after a successful command result.
 /// </summary>
-/// <typeparam name="TRequest">The request type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type returned by the request.</typeparam>
+/// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
+/// <typeparam name="TResult">The result type returned by the command.</typeparam>
 /// <param name="eventBus">The event bus used to publish domain events.</param>
-/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the request.</param>
-public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
+/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the command.</param>
+public sealed class PublishDomainEventsBehavior<TCommand, TResult>(
     IEventBus eventBus,
-    IAggregateTracker aggregateTracker) : IAfterRequestBehavior<TRequest, TResult>
-    where TRequest : IRequest<TResult>
+    IAggregateTracker aggregateTracker) : IAfterRequestBehavior<TCommand, TResult>
+    where TCommand : ICommand<TResult>
     where TResult : Result
 {
     /// <summary>
-    /// Publishes domain events when the request succeeded and clears tracked events after completed publication.
+    /// Publishes domain events when the command succeeded and clears tracked events after completed publication.
     /// </summary>
-    /// <param name="request">The request that was processed.</param>
-    /// <param name="result">The request execution result.</param>
+    /// <param name="request">The command that was processed.</param>
+    /// <param name="result">The command execution result.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task AfterAsync(
-        TRequest request,
+        TCommand request,
         TResult result,
         CancellationToken cancellationToken)
     {

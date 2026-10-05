@@ -8,6 +8,37 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 
 public sealed class RequestBehaviorsTests
 {
+    [Theory(DisplayName = "Command behaviors reject queries")]
+    [InlineData(typeof(BeginTransactionBehavior<,>))]
+    [InlineData(typeof(PublishDomainEventsBehavior<,>))]
+    [InlineData(typeof(CommitTransactionBehavior<,>))]
+    [InlineData(typeof(CleanupTransactionBehavior<,>))]
+    public void CommandBehaviors_WhenClosedForQuery_RejectQuery(Type behaviorType)
+    {
+        // Arrange
+        var queryType = typeof(TestValidatedQuery);
+        var resultType = typeof(Result<string>);
+
+        // Act
+        void act() => behaviorType.MakeGenericType(queryType, resultType);
+
+        // Assert
+        Should.Throw<ArgumentException>(act);
+    }
+
+    [Fact(DisplayName = "PublishDomainEventsBehavior rejects requests without a command contract")]
+    public void PublishDomainEventsBehavior_WhenClosedForPlainRequest_RejectsRequest()
+    {
+        // Arrange
+        var behaviorType = typeof(PublishDomainEventsBehavior<,>);
+
+        // Act
+        void act() => behaviorType.MakeGenericType(typeof(TestRequest), typeof(Result));
+
+        // Assert
+        Should.Throw<ArgumentException>(act);
+    }
+
     [Fact(DisplayName = "BeginTransactionBehavior begins a transaction")]
     public async Task BeforeAsync_WhenCalled_BeginsTransaction()
     {
@@ -190,7 +221,7 @@ public sealed class RequestBehaviorsTests
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior publishes events from tracked aggregates")]
-    public async Task AfterAsync_WhenRequestSucceeded_PublishesDomainEventsAndClearsTracking()
+    public async Task AfterAsync_WhenCommandSucceeded_PublishesDomainEventsAndClearsTracking()
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
@@ -201,9 +232,9 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(secondEvent);
         aggregateTracker.Track(aggregateRoot);
 
-        var behavior = new PublishDomainEventsBehavior<TestRequest, Result>(eventBus, aggregateTracker);
+        var behavior = new PublishDomainEventsBehavior<TestCommand, Result>(eventBus, aggregateTracker);
 
-        await behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
+        await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
         eventBus.PublishedEvents.ShouldBe(new[] { firstEvent, secondEvent });
         aggregateRoot.GetDomainEvents().ShouldBeEmpty();
@@ -211,8 +242,8 @@ public sealed class RequestBehaviorsTests
         aggregateTracker.GetAll().ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "PublishDomainEventsBehavior clears tracking without publishing failed request results")]
-    public async Task AfterAsync_WhenRequestFailed_ClearsTrackingWithoutPublishing()
+    [Fact(DisplayName = "PublishDomainEventsBehavior clears tracking without publishing failed command results")]
+    public async Task AfterAsync_WhenCommandFailed_ClearsTrackingWithoutPublishing()
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
@@ -220,9 +251,9 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(new TestDomainEvent());
         aggregateTracker.Track(aggregateRoot);
 
-        var behavior = new PublishDomainEventsBehavior<TestRequest, Result>(eventBus, aggregateTracker);
+        var behavior = new PublishDomainEventsBehavior<TestCommand, Result>(eventBus, aggregateTracker);
 
-        await behavior.AfterAsync(new TestRequest(), CreateFailureResult(), CancellationToken.None);
+        await behavior.AfterAsync(new TestCommand(), CreateFailureResult(), CancellationToken.None);
 
         eventBus.PublishedEvents.ShouldBeEmpty();
         aggregateRoot.GetDomainEvents().ShouldBeEmpty();
@@ -242,9 +273,9 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(new TestDomainEvent());
         aggregateTracker.Track(aggregateRoot);
 
-        var behavior = new PublishDomainEventsBehavior<TestRequest, Result>(eventBus, aggregateTracker);
+        var behavior = new PublishDomainEventsBehavior<TestCommand, Result>(eventBus, aggregateTracker);
 
-        Task act() => behavior.AfterAsync(new TestRequest(), Result.Success(), CancellationToken.None);
+        Task act() => behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(act);
 
