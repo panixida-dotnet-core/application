@@ -377,60 +377,23 @@ public sealed record DamageRange(
 
 ## File Storage
 
-`IFileStorage` in `PANiXiDA.Core.Application.Storage` works with string keys and streams.
-Applications or domains generate and persist keys; storage adapters configure the
-provider, storage location, credentials, and optional environment prefix.
-Provider SDK types and domain-specific identifiers are not part of the contract.
+`IFileStorage` in `PANiXiDA.Core.Application.Storage` provides provider-independent
+file operations using string keys and cancellation tokens:
 
-```csharp
-using PANiXiDA.Core.Application.Storage;
+- `UploadAsync` uploads a stream with a content type, reads from its current position,
+  and leaves it open. Uploads to an existing key replace its content.
+- `DownloadAsync` returns a stream the caller must dispose; missing files raise `FileNotFoundException`.
+- `DeleteAsync` deletes a file and succeeds if it is already absent.
+- `GetPresignedUploadUrlAsync` accepts a key, content type, and size and returns a signed `PUT` URL.
+- `GetPresignedDownloadUrlAsync` accepts a key, file name, and content type and returns a signed `GET` URL.
 
-public sealed class FileContentReader(IFileStorage storage)
-{
-    public async Task CopyToAsync(
-        string key,
-        Stream destination,
-        CancellationToken cancellationToken)
-    {
-        await using var content = await storage.DownloadAsync(key, cancellationToken);
-        await content.CopyToAsync(destination, cancellationToken);
-    }
-}
-```
+Results in `Storage.Models` are `PresignedUploadUrl` (`Url`, `ExpiresAt`, `RequiredHeaders`)
+and `PresignedDownloadUrl` (`Url`, `ExpiresAt`). Use URLs unchanged and send required
+upload headers with the declared content type and size.
 
-- `UploadAsync` accepts a key, a readable stream, a content type, and a cancellation token.
-  It reads from the stream's current position, leaves it open, and replaces content
-  already stored under the same key. Use unique keys when existing files must be preserved.
-- `DownloadAsync` returns a readable stream owned by the caller, which may not support seeking.
-  A missing file raises `FileNotFoundException`. The token cancels opening the stream;
-  pass cancellation tokens to subsequent asynchronous read operations separately.
-- `DeleteAsync` succeeds when the file is already absent. Other storage failures must propagate.
-- Keys are case-sensitive and must not be null, empty, or whitespace. Content types
-  must be non-empty. Adapters validate inputs and honor cancellation.
-
-`GetPresignedUploadUrlAsync` accepts a key, content type, expected size in bytes,
-and a cancellation token. It creates a URL for an HTTP `PUT` upload. Size must be
-non-negative, and the client must send the declared content type and content length.
-As with `UploadAsync`, uploading to an existing key replaces its content.
-
-`GetPresignedDownloadUrlAsync` accepts a key, suggested download file name,
-response content type, and a cancellation token. It creates a URL for an HTTP `GET`
-download. File names must be non-empty; adapters encode them safely in response headers.
-
-The URL result models are in `PANiXiDA.Core.Application.Storage.Models`.
-Upload URLs return `PresignedUploadUrl` with `Url`, `ExpiresAt`, and `RequiredHeaders`.
-Clients must include the required upload headers; the dictionary is empty when none
-are required. Download URLs return `PresignedDownloadUrl` with only `Url` and `ExpiresAt`;
-clients can use the URL directly without additional request headers.
-Clients must use both URLs unchanged. Infrastructure implementations configure URL
-lifetime; credential expiry or revocation can invalidate a URL earlier.
-
-Generating a URL does not transfer content or verify that a file exists. Applications
-authorize callers before issuing URLs and verify uploaded content before marking a file ready.
-The download stream does not carry file metadata; applications obtain it from their own models.
-
-Authorization, file metadata, folder trees, and coordination with database transactions
-remain responsibilities of the consuming application. This package contains no storage implementation.
+Applications own keys, metadata, authorization, and upload verification. Infrastructure
+adapters configure the provider, storage location, optional prefix, and URL lifetime.
+This package defines contracts only; generating a URL does not verify or transfer content.
 
 ## Repository Abstraction Ownership
 
