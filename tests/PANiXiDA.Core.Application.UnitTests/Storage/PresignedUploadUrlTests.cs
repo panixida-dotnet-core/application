@@ -3,9 +3,9 @@ using PANiXiDA.Core.Application.Storage;
 
 namespace PANiXiDA.Core.Application.UnitTests.Storage;
 
-public sealed class PresignedFileUrlTests
+public sealed class PresignedUploadUrlTests
 {
-    [Theory(DisplayName = "Presigned file URLs preserve signed request data through JSON serialization")]
+    [Theory(DisplayName = "Presigned upload URLs preserve signed request data through JSON serialization")]
     [InlineData(true)]
     [InlineData(false)]
     public void Serialize_WhenRoundTripped_PreservesSignedRequest(bool hasRequiredHeaders)
@@ -16,13 +16,13 @@ public sealed class PresignedFileUrlTests
             headers.Add("Content-Type", "image/png");
         }
 
-        var url = new PresignedFileUrl(
+        var url = new PresignedUploadUrl(
             "https://storage.example.test/files/avatar?signature=a%2Bb%2Fc%3D&expires=123",
             new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(4)),
             headers);
 
         var json = JsonSerializer.Serialize(url);
-        var result = JsonSerializer.Deserialize<PresignedFileUrl>(json);
+        var result = JsonSerializer.Deserialize<PresignedUploadUrl>(json);
 
         result.ShouldNotBeNull();
         result.Url.ShouldBe(url.Url);

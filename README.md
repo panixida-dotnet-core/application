@@ -417,10 +417,12 @@ As with `UploadAsync`, uploading to an existing key replaces its content.
 response content type, and a cancellation token. It creates a URL for an HTTP `GET`
 download. File names must be non-empty; adapters encode them safely in response headers.
 
-Both methods return `PresignedFileUrl` with `Url`, `ExpiresAt`, and `RequiredHeaders`.
-Clients must use the URL unchanged and include the required headers. The dictionary
-is empty when no additional headers are required. Infrastructure implementations
-configure URL lifetime; credential expiry or revocation can invalidate a URL earlier.
+Upload URLs return `PresignedUploadUrl` with `Url`, `ExpiresAt`, and `RequiredHeaders`.
+Clients must include the required upload headers; the dictionary is empty when none
+are required. Download URLs return `PresignedDownloadUrl` with only `Url` and `ExpiresAt`;
+clients can use the URL directly without additional request headers.
+Clients must use both URLs unchanged. Infrastructure implementations configure URL
+lifetime; credential expiry or revocation can invalidate a URL earlier.
 
 Generating a URL does not transfer content or verify that a file exists. Applications
 authorize callers before issuing URLs and verify uploaded content before marking a file ready.

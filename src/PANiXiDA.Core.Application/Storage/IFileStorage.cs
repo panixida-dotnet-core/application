@@ -57,7 +57,7 @@ public interface IFileStorage
     /// The infrastructure implementation configures the URL lifetime.
     /// Generating a URL does not upload content or confirm a completed upload.
     /// </remarks>
-    Task<PresignedFileUrl> GetPresignedUploadUrlAsync(
+    Task<PresignedUploadUrl> GetPresignedUploadUrlAsync(
         string key,
         string contentType,
         long size,
@@ -70,12 +70,12 @@ public interface IFileStorage
     /// <param name="fileName">The non-empty file name suggested to the client when saving the download.</param>
     /// <param name="contentType">The non-empty media type returned in the download response.</param>
     /// <param name="cancellationToken">The token used to cancel URL generation.</param>
-    /// <returns>The signed URL, its expiration time, and required request headers.</returns>
+    /// <returns>The signed URL and its expiration time.</returns>
     /// <remarks>
     /// The infrastructure implementation configures the URL lifetime.
     /// Generating a URL does not verify that the file exists or authorize the caller.
     /// </remarks>
-    Task<PresignedFileUrl> GetPresignedDownloadUrlAsync(
+    Task<PresignedDownloadUrl> GetPresignedDownloadUrlAsync(
         string key,
         string fileName,
         string contentType,
