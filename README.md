@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, file storage, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -22,6 +22,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- File storage abstraction for uploading, downloading, and deleting content by caller-supplied keys, including signed URLs for direct transfers.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
 - Immutable sorting criteria, optional default merging, and generated read-model-specific FluentValidation validators.
@@ -35,7 +36,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="4.1.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="4.2.0" />
 </ItemGroup>
 ```
 
@@ -374,6 +375,26 @@ public sealed record DamageRange(
 }
 ```
 
+## File Storage
+
+`IFileStorage` in `PANiXiDA.Core.Application.Storage` provides provider-independent
+file operations using string keys and cancellation tokens:
+
+- `UploadAsync` uploads a stream with a content type, reads from its current position,
+  and leaves it open. Uploads to an existing key replace its content.
+- `DownloadAsync` returns a stream the caller must dispose; missing files raise `FileNotFoundException`.
+- `DeleteAsync` deletes a file and succeeds if it is already absent.
+- `GetPresignedUploadUrlAsync` accepts a key, content type, and size and returns a signed `PUT` URL.
+- `GetPresignedDownloadUrlAsync` accepts a key, file name, and content type and returns a signed `GET` URL.
+
+Results in `Storage.Models` are `PresignedUploadUrl` (`Url`, `ExpiresAt`, `RequiredHeaders`)
+and `PresignedDownloadUrl` (`Url`, `ExpiresAt`). Use URLs unchanged and send required
+upload headers with the declared content type and size.
+
+Applications own keys, metadata, authorization, and upload verification. Infrastructure
+adapters configure the provider, storage location, optional prefix, and URL lifetime.
+This package defines contracts only; generating a URL does not verify or transfer content.
+
 ## Repository Abstraction Ownership
 
 Repository contracts are split by architectural responsibility:
@@ -435,7 +456,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ## Configuration
 
-The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, and dependency injection registration.
+The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, file storage, and dependency injection registration.
 
 ## Development
 
