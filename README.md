@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, file storage, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -22,6 +22,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- File storage abstraction for uploading, reading, and deleting content by caller-supplied keys.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
 - Immutable sorting criteria, optional default merging, and generated read-model-specific FluentValidation validators.
@@ -35,7 +36,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="4.1.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="4.2.0" />
 </ItemGroup>
 ```
 
@@ -374,6 +375,42 @@ public sealed record DamageRange(
 }
 ```
 
+## File Storage
+
+`IFileStorage` in `PANiXiDA.Core.Application.Storage` works with string keys and streams.
+Applications or domains generate and persist keys; storage adapters configure the
+provider, storage location, credentials, and optional environment prefix.
+Provider SDK types and domain-specific identifiers are not part of the contract.
+
+```csharp
+using PANiXiDA.Core.Application.Storage;
+
+public sealed class FileContentReader(IFileStorage storage)
+{
+    public async Task CopyToAsync(
+        string key,
+        Stream destination,
+        CancellationToken cancellationToken)
+    {
+        await using var content = await storage.OpenReadAsync(key, cancellationToken);
+        await content.CopyToAsync(destination, cancellationToken);
+    }
+}
+```
+
+- `UploadAsync` accepts a key, a readable stream, a content type, and a cancellation token.
+  It reads from the stream's current position, leaves it open, and replaces content
+  already stored under the same key. Use unique keys when existing files must be preserved.
+- `OpenReadAsync` returns a readable stream owned by the caller, which may not support seeking.
+  A missing file raises `FileNotFoundException`. The token cancels opening the stream;
+  pass cancellation tokens to subsequent asynchronous read operations separately.
+- `DeleteAsync` succeeds when the file is already absent. Other storage failures must propagate.
+- Keys are case-sensitive and must not be null, empty, or whitespace. Content types
+  must be non-empty. Adapters validate inputs and honor cancellation.
+
+Authorization, file metadata, folder trees, and coordination with database transactions
+remain responsibilities of the consuming application. This package contains no storage implementation.
+
 ## Repository Abstraction Ownership
 
 Repository contracts are split by architectural responsibility:
@@ -435,7 +472,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ## Configuration
 
-The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, and dependency injection registration.
+The package does not require runtime configuration. Consumers provide concrete implementations for mediator dispatch, persistence, event bus delivery, command and event scheduling, aggregate tracking, file storage, and dependency injection registration.
 
 ## Development
 
