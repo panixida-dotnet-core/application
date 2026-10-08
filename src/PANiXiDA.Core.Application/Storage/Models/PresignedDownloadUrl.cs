@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Application.Storage;
+namespace PANiXiDA.Core.Application.Storage.Models;
 
 /// <summary>
 /// Describes a signed URL for direct file download.

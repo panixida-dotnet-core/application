@@ -417,6 +417,7 @@ As with `UploadAsync`, uploading to an existing key replaces its content.
 response content type, and a cancellation token. It creates a URL for an HTTP `GET`
 download. File names must be non-empty; adapters encode them safely in response headers.
 
+The URL result models are in `PANiXiDA.Core.Application.Storage.Models`.
 Upload URLs return `PresignedUploadUrl` with `Url`, `ExpiresAt`, and `RequiredHeaders`.
 Clients must include the required upload headers; the dictionary is empty when none
 are required. Download URLs return `PresignedDownloadUrl` with only `Url` and `ExpiresAt`;

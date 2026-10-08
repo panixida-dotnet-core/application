@@ -1,3 +1,5 @@
+using PANiXiDA.Core.Application.Storage.Models;
+
 namespace PANiXiDA.Core.Application.Storage;
 
 /// <summary>

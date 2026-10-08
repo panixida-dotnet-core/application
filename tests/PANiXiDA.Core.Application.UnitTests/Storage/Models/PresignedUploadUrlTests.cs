@@ -1,7 +1,7 @@
 using System.Text.Json;
-using PANiXiDA.Core.Application.Storage;
+using PANiXiDA.Core.Application.Storage.Models;
 
-namespace PANiXiDA.Core.Application.UnitTests.Storage;
+namespace PANiXiDA.Core.Application.UnitTests.Storage.Models;
 
 public sealed class PresignedUploadUrlTests
 {
