@@ -22,7 +22,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
-- File storage abstraction for uploading, reading, and deleting content by caller-supplied keys.
+- File storage abstraction for uploading, downloading, and deleting content by caller-supplied keys, including signed URLs for direct transfers.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
 - Immutable sorting criteria, optional default merging, and generated read-model-specific FluentValidation validators.
@@ -392,7 +392,7 @@ public sealed class FileContentReader(IFileStorage storage)
         Stream destination,
         CancellationToken cancellationToken)
     {
-        await using var content = await storage.OpenReadAsync(key, cancellationToken);
+        await using var content = await storage.DownloadAsync(key, cancellationToken);
         await content.CopyToAsync(destination, cancellationToken);
     }
 }
@@ -401,12 +401,30 @@ public sealed class FileContentReader(IFileStorage storage)
 - `UploadAsync` accepts a key, a readable stream, a content type, and a cancellation token.
   It reads from the stream's current position, leaves it open, and replaces content
   already stored under the same key. Use unique keys when existing files must be preserved.
-- `OpenReadAsync` returns a readable stream owned by the caller, which may not support seeking.
+- `DownloadAsync` returns a readable stream owned by the caller, which may not support seeking.
   A missing file raises `FileNotFoundException`. The token cancels opening the stream;
   pass cancellation tokens to subsequent asynchronous read operations separately.
 - `DeleteAsync` succeeds when the file is already absent. Other storage failures must propagate.
 - Keys are case-sensitive and must not be null, empty, or whitespace. Content types
   must be non-empty. Adapters validate inputs and honor cancellation.
+
+`GetPresignedUploadUrlAsync` accepts a key, content type, expected size in bytes,
+and a cancellation token. It creates a URL for an HTTP `PUT` upload. Size must be
+non-negative, and the client must send the declared content type and content length.
+As with `UploadAsync`, uploading to an existing key replaces its content.
+
+`GetPresignedDownloadUrlAsync` accepts a key, suggested download file name,
+response content type, and a cancellation token. It creates a URL for an HTTP `GET`
+download. File names must be non-empty; adapters encode them safely in response headers.
+
+Both methods return `PresignedFileUrl` with `Url`, `ExpiresAt`, and `RequiredHeaders`.
+Clients must use the URL unchanged and include the required headers. The dictionary
+is empty when no additional headers are required. Infrastructure implementations
+configure URL lifetime; credential expiry or revocation can invalidate a URL earlier.
+
+Generating a URL does not transfer content or verify that a file exists. Applications
+authorize callers before issuing URLs and verify uploaded content before marking a file ready.
+The download stream does not carry file metadata; applications obtain it from their own models.
 
 Authorization, file metadata, folder trees, and coordination with database transactions
 remain responsibilities of the consuming application. This package contains no storage implementation.

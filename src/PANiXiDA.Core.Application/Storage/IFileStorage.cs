@@ -31,7 +31,7 @@ public interface IFileStorage
     /// <param name="cancellationToken">The token used to cancel opening the stream.</param>
     /// <returns>A readable stream that the caller must dispose. Seeking is not guaranteed.</returns>
     /// <exception cref="FileNotFoundException">No file exists at the specified key.</exception>
-    Task<Stream> OpenReadAsync(
+    Task<Stream> DownloadAsync(
         string key,
         CancellationToken cancellationToken);
 
@@ -43,5 +43,41 @@ public interface IFileStorage
     /// <returns>A task that completes when deletion finishes.</returns>
     Task DeleteAsync(
         string key,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates a signed URL for uploading file content with an HTTP PUT request.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="contentType">The non-empty media type required for the upload.</param>
+    /// <param name="size">The expected non-negative content length in bytes.</param>
+    /// <param name="cancellationToken">The token used to cancel URL generation.</param>
+    /// <returns>The signed URL, its expiration time, and required request headers.</returns>
+    /// <remarks>
+    /// The infrastructure implementation configures the URL lifetime.
+    /// Generating a URL does not upload content or confirm a completed upload.
+    /// </remarks>
+    Task<PresignedFileUrl> GetPresignedUploadUrlAsync(
+        string key,
+        string contentType,
+        long size,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates a signed URL for downloading file content with an HTTP GET request.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="fileName">The non-empty file name suggested to the client when saving the download.</param>
+    /// <param name="contentType">The non-empty media type returned in the download response.</param>
+    /// <param name="cancellationToken">The token used to cancel URL generation.</param>
+    /// <returns>The signed URL, its expiration time, and required request headers.</returns>
+    /// <remarks>
+    /// The infrastructure implementation configures the URL lifetime.
+    /// Generating a URL does not verify that the file exists or authorize the caller.
+    /// </remarks>
+    Task<PresignedFileUrl> GetPresignedDownloadUrlAsync(
+        string key,
+        string fileName,
+        string contentType,
         CancellationToken cancellationToken);
 }
