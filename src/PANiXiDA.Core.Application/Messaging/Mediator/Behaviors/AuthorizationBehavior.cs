@@ -60,14 +60,14 @@ public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentU
         {
             return Task.FromResult(
                 Result.Failure(Error.Forbidden(
-                    $"The caller is missing required permissions: {string.Join(", ", missingPermissions)}.")));
+                    $"The caller is missing required permissions: {string.Join(", ", missingPermissions.Order(StringComparer.Ordinal))}.")));
         }
 
         if (anyPermissions.Count > 0 && !anyPermissions.Any(currentUser.HasPermission))
         {
             return Task.FromResult(
                 Result.Failure(Error.Forbidden(
-                    $"At least one of the following permissions is required: {string.Join(", ", anyPermissions)}.")));
+                    $"At least one of the following permissions is required: {string.Join(", ", anyPermissions.Order(StringComparer.Ordinal))}.")));
         }
 
         return Task.FromResult(Result.Success());

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using PANiXiDA.Core.Application.Authentication.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
@@ -75,7 +77,7 @@ public sealed class AuthorizationBehaviorTests
     }
 
     [Theory(DisplayName = "AllPermissions requires every permission and reports only missing permissions")]
-    [InlineData("tasks.read, tasks.export")]
+    [InlineData("tasks.export, tasks.read")]
     [InlineData("tasks.export", "tasks.read")]
     [InlineData("tasks.read", "tasks.export")]
     [InlineData(null, "tasks.read", "tasks.export")]
@@ -117,7 +119,33 @@ public sealed class AuthorizationBehaviorTests
         {
             var error = result.Errors.ShouldHaveSingleItem();
             error.Type.ShouldBe(ErrorType.Forbidden);
-            error.Message.ShouldBe("At least one of the following permissions is required: tasks.read, tasks.manage.");
+            error.Message.ShouldBe("At least one of the following permissions is required: tasks.manage, tasks.read.");
+        }
+    }
+
+    [Theory(DisplayName = "Permission failure messages use ordinal order regardless of set order and culture")]
+    [InlineData("en-US")]
+    [InlineData("tr-TR")]
+    public async Task BeforeAsync_WhenPermissionsAreSets_FormatsFailuresInOrdinalOrder(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+
+        try
+        {
+            var currentUser = new RecordingCurrentUser(true);
+
+            var allResult = await AuthorizeAsync<AllPermissionSetHandler>(currentUser);
+            var anyResult = await AuthorizeAsync<AnyPermissionSetHandler>(currentUser);
+
+            allResult.Errors.ShouldHaveSingleItem().Message.ShouldBe(
+                "The caller is missing required permissions: tasks.A, tasks.a, tasks.z.");
+            anyResult.Errors.ShouldHaveSingleItem().Message.ShouldBe(
+                "At least one of the following permissions is required: tasks.A, tasks.a, tasks.z.");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
         }
     }
 
@@ -259,6 +287,18 @@ public sealed class AuthorizationBehaviorTests
         public static IReadOnlyCollection<string> AllPermissions { get; } = ["tasks.read", "tasks.export"];
 
         public static IReadOnlyCollection<string> AnyPermissions { get; } = ["reports.create", "reports.manage"];
+    }
+
+    private sealed class AllPermissionSetHandler : TestCommandHandler, IRequireAuthorization
+    {
+        public static IReadOnlyCollection<string> AllPermissions { get; } =
+            new HashSet<string>(StringComparer.Ordinal) { "tasks.z", "tasks.A", "tasks.a" };
+    }
+
+    private sealed class AnyPermissionSetHandler : TestCommandHandler, IRequireAuthorization
+    {
+        public static IReadOnlyCollection<string> AnyPermissions { get; } =
+            new HashSet<string>(StringComparer.Ordinal) { "tasks.a", "tasks.z", "tasks.A" };
     }
 
     private sealed class ExplicitPermissionsHandler : TestCommandHandler, IRequireAuthorization

@@ -335,6 +335,7 @@ The consuming mediator is responsible for registration and execution.
 The behavior returns `Unauthorized` for unauthenticated callers, `Forbidden` for
 missing permissions, and `Unexpected` for null permission collections or null,
 empty, or whitespace permission names.
+Permission names in failure messages are sorted using `StringComparer.Ordinal`.
 
 `Authentication.ClaimTypes.Permission` is `"permission"` and
 `Authentication.ClaimTypes.Section` is `"section"`. Roles and UI sections do not
