@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 using FluentValidation;
 
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
@@ -18,10 +16,6 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <remarks>
 /// Creates a validation failure result when one or more FluentValidation validators report failures.
 /// </remarks>
-[SuppressMessage(
-    "Major Code Smell",
-    "S2436:Types and methods should not have too many generic parameters",
-    Justification = "The behavior preserves the request, result, and handler types required by the before-request pipeline contract.")]
 public sealed class ValidationBehavior<TRequest, TResult, THandler>(
     IEnumerable<IValidator<TRequest>> validators) : IBeforeRequestBehavior<TRequest, TResult, THandler>
     where TRequest : IRequest<TResult>
