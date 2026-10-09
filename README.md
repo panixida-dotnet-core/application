@@ -298,20 +298,13 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 ### Handler Authorization
 
-`ICurrentUser` and `IRequireAuthorization` are defined in
+Implement `IRequireAuthorization` on a command or query handler and provide
+`ICurrentUser` from a validated, authenticated identity. Both interfaces are in
 `PANiXiDA.Core.Application.Authentication.Abstractions`.
-`ICurrentUser` exposes the authenticated caller independently of HTTP or an identity
-provider: `IsAuthenticated`, nullable `UserId` and `UserName`, `Roles`,
-`TryGetClaimValue<T>`, and `HasPermission`. A service caller can be authenticated
-without a `Guid` user identifier. Transport adapters must read claims only from
-validated, authenticated identities. Generic claim parsing uses invariant culture.
-
-Implement `IRequireAuthorization` on a command or query handler to require
-authentication. Its static permission collections default to empty:
 
 - `AllPermissions`: the caller must have every declared permission.
 - `AnyPermissions`: when non-empty, the caller must have at least one declared permission.
-- When both collections are non-empty, both conditions must be satisfied.
+- Both conditions apply together. Empty collections require authentication only.
 
 ```csharp
 using PANiXiDA.Core.Application.Authentication.Abstractions;
@@ -335,38 +328,18 @@ public sealed class AuthorizedPingHandler
 }
 ```
 
-The consuming mediator must bind the actual handler type as `THandler` and apply
-`AuthorizationBehavior<,,>` only to handlers implementing `IRequireAuthorization`.
-Declaring the interface does not register or execute a pipeline automatically.
-Handlers without it have no authorization requirement from this behavior.
+Register `AuthorizationBehavior<,,>` before validation and transactions for handlers
+implementing `IRequireAuthorization`, binding their actual type as `THandler`.
+The consuming mediator is responsible for registration and execution.
 
 The behavior returns `Unauthorized` for unauthenticated callers, `Forbidden` for
 missing permissions, and `Unexpected` for null permission collections or null,
-empty, or whitespace permission names. Empty collections require authentication
-only. Explicit static interface implementations are supported.
+empty, or whitespace permission names.
 
 `Authentication.ClaimTypes.Permission` is `"permission"` and
 `Authentication.ClaimTypes.Section` is `"section"`. Roles and UI sections do not
-implicitly grant permissions. Role-to-permission assignment belongs to the identity
-provider, while access to a particular resource remains an application or domain
-policy. This package does not issue or validate tokens or implement `ICurrentUser`.
-
-### Migrating from 4.x to 5.0
-
-- `ICommandHandler<,>` and `IQueryHandler<,>` inherit `HandleAsync` from the new
-  `IRequestHandler<TRequest, TResult>` contract. Normal public handler implementations
-  keep their signatures. Explicit implementations must target `IRequestHandler<,>`;
-  calls through handler interfaces using named arguments must use `request:`.
-- Replace `IBeforeRequestBehavior<TRequest, TResult>` with
-  `IBeforeRequestBehavior<TRequest, TResult, THandler>` and constrain `THandler` to
-  `IRequestHandler<TRequest, TResult>`.
-- Supply the handler type to `ValidationBehavior<,,>` and
-  `BeginTransactionBehavior<,,>`, including open-generic registrations and generated
-  metadata. `IAfterRequestBehavior<,>` and `IFinallyRequestBehavior<,>` keep their contracts.
-- Update the consuming mediator adapter before upgrading applications. The existing
-  Wolverine adapter must be migrated to the three-parameter before contract and
-  register authorization before validation and transaction creation. Its migration
-  is maintained in the separate adapter repository.
+implicitly grant permissions. Token validation and the `ICurrentUser` implementation
+belong to the transport adapter; resource-specific access rules belong to the application.
 
 ## Domain Value Validation
 

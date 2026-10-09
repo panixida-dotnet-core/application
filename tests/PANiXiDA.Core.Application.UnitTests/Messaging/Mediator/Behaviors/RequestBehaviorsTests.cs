@@ -15,29 +15,23 @@ public sealed class RequestBehaviorsTests
     [InlineData(typeof(CleanupTransactionBehavior<,>))]
     public void CommandBehaviors_WhenClosedForQuery_RejectQuery(Type behaviorType)
     {
-        // Arrange
         var queryType = typeof(TestValidatedQuery);
         var resultType = typeof(Result<string>);
 
-        // Act
         void act() => behaviorType.MakeGenericType(behaviorType.GetGenericArguments().Length == 3
             ? [queryType, resultType, typeof(TestRequestHandler<TestValidatedQuery, Result<string>>)]
             : [queryType, resultType]);
 
-        // Assert
         Should.Throw<ArgumentException>(act);
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior rejects requests without a command contract")]
     public void PublishDomainEventsBehavior_WhenClosedForPlainRequest_RejectsRequest()
     {
-        // Arrange
         var behaviorType = typeof(PublishDomainEventsBehavior<,>);
 
-        // Act
         void act() => behaviorType.MakeGenericType(typeof(TestRequest), typeof(Result));
 
-        // Assert
         Should.Throw<ArgumentException>(act);
     }
 
