@@ -2,7 +2,7 @@
 
 `PANiXiDA.Core.Application` is a .NET library with application-layer abstractions for Clean Architecture, CQRS, and DDD-based services.
 
-It defines contracts and small reusable building blocks for commands, queries, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, file storage, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
+It defines contracts and small reusable building blocks for commands, queries, handler authorization, request behaviors, domain event publishing, command and event scheduling, unit-of-work orchestration, read repositories, aggregate tracking, file storage, and read-side paging helpers. The package intentionally does not provide a concrete mediator, database provider, dependency injection module, or transport-specific implementation.
 
 ## Status
 
@@ -17,7 +17,8 @@ It defines contracts and small reusable building blocks for commands, queries, r
 - CQRS request contracts: `ICommand<TResult>`, `IQuery<TResult>`, and `IRequest<TResult>`.
 - Mediator contracts for command/query dispatch and handler implementation.
 - Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
-- Built-in behaviors for FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
+- Built-in behaviors for permission-based authorization, FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
+- Transport-independent current caller information and handler-level authentication and permission requirements.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
@@ -36,7 +37,7 @@ It defines contracts and small reusable building blocks for commands, queries, r
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="4.2.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.0.0" />
 </ItemGroup>
 ```
 
@@ -268,10 +269,11 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 
 ## Request Behaviors
 
-The package includes reusable mediator behavior implementations for request validation, command transaction orchestration, and domain event publication:
+The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, and domain event publication:
 
-- `ValidationBehavior<TRequest, TResult>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
-- `BeginTransactionBehavior<TCommand, TResult>` starts a transaction before a command handler runs.
+- `AuthorizationBehavior<TRequest, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
+- `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
+- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
@@ -281,6 +283,7 @@ Domain event publication and transaction behaviors require `ICommand<TResult>` a
 A consuming mediator implementation should register these behaviors in a deterministic order. A typical command pipeline is:
 
 ```text
+before:  AuthorizationBehavior
 before:  ValidationBehavior
 before:  BeginTransactionBehavior
 handler: ICommandHandler<TCommand, TResult>
@@ -292,6 +295,76 @@ finally: CleanupTransactionBehavior
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
+
+### Handler Authorization
+
+`ICurrentUser` exposes the authenticated caller independently of HTTP or an identity
+provider: `IsAuthenticated`, nullable `UserId` and `UserName`, `Roles`,
+`TryGetClaimValue<T>`, and `HasPermission`. A service caller can be authenticated
+without a `Guid` user identifier. Transport adapters must read claims only from
+validated, authenticated identities. Generic claim parsing uses invariant culture.
+
+Implement `IRequireAuthorization` on a command or query handler to require
+authentication. Its static permission collections default to empty:
+
+- `AllPermissions`: the caller must have every declared permission.
+- `AnyPermissions`: when non-empty, the caller must have at least one declared permission.
+- When both collections are non-empty, both conditions must be satisfied.
+
+```csharp
+using PANiXiDA.Core.Application.Authentication;
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
+using PANiXiDA.Core.ResultPattern;
+
+public sealed record AuthorizedPingCommand : ICommand<Result>;
+
+public sealed class AuthorizedPingHandler
+    : ICommandHandler<AuthorizedPingCommand, Result>, IRequireAuthorization
+{
+    public static IReadOnlyCollection<string> AllPermissions => ["messages.ping"];
+
+    public Task<Result> HandleAsync(
+        AuthorizedPingCommand request,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(Result.Success());
+    }
+}
+```
+
+The consuming mediator must bind the actual handler type as `THandler` and apply
+`AuthorizationBehavior<,,>` only to handlers implementing `IRequireAuthorization`.
+Declaring the interface does not register or execute a pipeline automatically.
+Handlers without it have no authorization requirement from this behavior.
+
+The behavior returns `Unauthorized` for unauthenticated callers, `Forbidden` for
+missing permissions, and `Unexpected` for null permission collections or null,
+empty, or whitespace permission names. Empty collections require authentication
+only. Explicit static interface implementations are supported.
+
+`Authentication.ClaimTypes.Permission` is `"permission"` and
+`Authentication.ClaimTypes.Section` is `"section"`. Roles and UI sections do not
+implicitly grant permissions. Role-to-permission assignment belongs to the identity
+provider, while access to a particular resource remains an application or domain
+policy. This package does not issue or validate tokens or implement `ICurrentUser`.
+
+### Migrating from 4.x to 5.0
+
+- `ICommandHandler<,>` and `IQueryHandler<,>` inherit `HandleAsync` from the new
+  `IRequestHandler<TRequest, TResult>` contract. Normal public handler implementations
+  keep their signatures. Explicit implementations must target `IRequestHandler<,>`;
+  calls through handler interfaces using named arguments must use `request:`.
+- Replace `IBeforeRequestBehavior<TRequest, TResult>` with
+  `IBeforeRequestBehavior<TRequest, TResult, THandler>` and constrain `THandler` to
+  `IRequestHandler<TRequest, TResult>`.
+- Supply the handler type to `ValidationBehavior<,,>` and
+  `BeginTransactionBehavior<,,>`, including open-generic registrations and generated
+  metadata. `IAfterRequestBehavior<,>` and `IFinallyRequestBehavior<,>` keep their contracts.
+- Update the consuming mediator adapter before upgrading applications. The existing
+  Wolverine adapter must be migrated to the three-parameter before contract and
+  register authorization before validation and transaction creation. Its migration
+  is maintained in the separate adapter repository.
 
 ## Domain Value Validation
 
@@ -418,10 +491,11 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 - `IMediator` dispatches commands and queries.
 - `IScheduler` schedules command dispatch and domain event publication through typed `ScheduleAsync` and `ScheduleAtAsync` overloads.
+- `IRequestHandler<TRequest, TResult>` is the common command and query handler contract.
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
-- `IBeforeRequestBehavior<TRequest, TResult>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
+- `IBeforeRequestBehavior<TRequest, TResult, THandler>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
 

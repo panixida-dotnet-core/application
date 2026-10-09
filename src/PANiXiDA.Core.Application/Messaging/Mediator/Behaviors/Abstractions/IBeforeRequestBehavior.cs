@@ -1,4 +1,5 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 
@@ -7,9 +8,11 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 /// </summary>
 /// <typeparam name="TRequest">The request type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the request.</typeparam>
-public interface IBeforeRequestBehavior<TRequest, TResult>
+/// <typeparam name="THandler">The handler type processing the request.</typeparam>
+public interface IBeforeRequestBehavior<TRequest, TResult, THandler>
     where TRequest : IRequest<TResult>
     where TResult : Result
+    where THandler : IRequestHandler<TRequest, TResult>
 {
     /// <summary>
     /// Executes behavior before the request handler runs.

@@ -9,7 +9,7 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 public sealed class RequestBehaviorsTests
 {
     [Theory(DisplayName = "Command behaviors reject queries")]
-    [InlineData(typeof(BeginTransactionBehavior<,>))]
+    [InlineData(typeof(BeginTransactionBehavior<,,>))]
     [InlineData(typeof(PublishDomainEventsBehavior<,>))]
     [InlineData(typeof(CommitTransactionBehavior<,>))]
     [InlineData(typeof(CleanupTransactionBehavior<,>))]
@@ -20,7 +20,9 @@ public sealed class RequestBehaviorsTests
         var resultType = typeof(Result<string>);
 
         // Act
-        void act() => behaviorType.MakeGenericType(queryType, resultType);
+        void act() => behaviorType.MakeGenericType(behaviorType.GetGenericArguments().Length == 3
+            ? [queryType, resultType, typeof(TestRequestHandler<TestValidatedQuery, Result<string>>)]
+            : [queryType, resultType]);
 
         // Assert
         Should.Throw<ArgumentException>(act);
@@ -43,7 +45,7 @@ public sealed class RequestBehaviorsTests
     public async Task BeforeAsync_WhenCalled_BeginsTransaction()
     {
         var unitOfWork = new TestUnitOfWork();
-        var behavior = new BeginTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new BeginTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         using var cancellationTokenSource = new CancellationTokenSource();
 
         var result = await behavior.BeforeAsync(new TestCommand(), cancellationTokenSource.Token);
@@ -57,7 +59,7 @@ public sealed class RequestBehaviorsTests
     [Fact(DisplayName = "ValidationBehavior returns success when validators are missing")]
     public async Task BeforeAsync_WhenValidatorsAreMissing_ReturnsSuccess()
     {
-        var behavior = new ValidationBehavior<TestValidatedCommand, Result>([]);
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result, TestRequestHandler<TestValidatedCommand, Result>>([]);
 
         var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: ""), CancellationToken.None);
 
@@ -67,7 +69,7 @@ public sealed class RequestBehaviorsTests
     [Fact(DisplayName = "ValidationBehavior returns success when validation succeeds")]
     public async Task BeforeAsync_WhenValidationSucceeds_ReturnsSuccess()
     {
-        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result, TestRequestHandler<TestValidatedCommand, Result>>(
             [new TestValidatedCommandValidator()]);
 
         var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: "name"), CancellationToken.None);
@@ -78,7 +80,7 @@ public sealed class RequestBehaviorsTests
     [Fact(DisplayName = "ValidationBehavior returns validation failure for invalid commands")]
     public async Task BeforeAsync_WhenCommandValidationFails_ReturnsValidationFailure()
     {
-        var behavior = new ValidationBehavior<TestValidatedCommand, Result>(
+        var behavior = new ValidationBehavior<TestValidatedCommand, Result, TestRequestHandler<TestValidatedCommand, Result>>(
             [new TestValidatedCommandValidator()]);
 
         var result = await behavior.BeforeAsync(new TestValidatedCommand(Name: ""), CancellationToken.None);
@@ -93,7 +95,7 @@ public sealed class RequestBehaviorsTests
     [Fact(DisplayName = "ValidationBehavior returns validation failure for invalid queries")]
     public async Task BeforeAsync_WhenQueryValidationFails_ReturnsValidationFailure()
     {
-        var behavior = new ValidationBehavior<TestValidatedQuery, Result<string>>(
+        var behavior = new ValidationBehavior<TestValidatedQuery, Result<string>, TestRequestHandler<TestValidatedQuery, Result<string>>>(
             [new TestValidatedQueryValidator()]);
 
         var result = await behavior.BeforeAsync(new TestValidatedQuery(Name: ""), CancellationToken.None);

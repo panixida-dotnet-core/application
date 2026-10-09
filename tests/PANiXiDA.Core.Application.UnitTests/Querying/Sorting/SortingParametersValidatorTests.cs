@@ -3,6 +3,7 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Querying;
 using PANiXiDA.Core.Application.Querying.Sorting;
+using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 using SortDirection = PANiXiDA.Core.Application.Querying.Sorting.SortDirection;
 
@@ -161,7 +162,8 @@ public sealed class SortingParametersValidatorTests
     [Fact(DisplayName = "ValidationBehavior exposes indexed sorting fields in validation errors")]
     public async Task BeforeAsync_WhenSortingIsUnsupported_ReturnsFieldMetadata()
     {
-        var behavior = new ValidationBehavior<SortQuery, Result>([new SortQueryValidator()]);
+        var behavior = new ValidationBehavior<SortQuery, Result, TestRequestHandler<SortQuery, Result>>(
+            [new SortQueryValidator()]);
         var query = new SortQuery(SortingParameters.Ascending("id"));
 
         var result = await behavior.BeforeAsync(query, TestContext.Current.CancellationToken);
