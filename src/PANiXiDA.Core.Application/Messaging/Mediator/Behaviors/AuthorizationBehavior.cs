@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using PANiXiDA.Core.Application.Authentication.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
@@ -12,6 +14,10 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <typeparam name="TResult">The result type returned by the request.</typeparam>
 /// <typeparam name="THandler">The handler type declaring the authorization requirements.</typeparam>
 /// <param name="currentUser">The current caller.</param>
+[SuppressMessage(
+    "Major Code Smell",
+    "S2436:Types and methods should not have too many generic parameters",
+    Justification = "The behavior requires request and result types to constrain the handler that declares authorization requirements.")]
 public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentUser currentUser)
     : IBeforeRequestBehavior<TRequest, TResult, THandler>
     where TRequest : IRequest<TResult>
