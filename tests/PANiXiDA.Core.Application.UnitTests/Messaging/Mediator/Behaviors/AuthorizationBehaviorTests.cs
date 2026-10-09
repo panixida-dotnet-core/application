@@ -1,4 +1,4 @@
-using PANiXiDA.Core.Application.Authentication;
+using PANiXiDA.Core.Application.Authentication.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
@@ -9,27 +9,6 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 
 public sealed class AuthorizationBehaviorTests
 {
-    [Fact(DisplayName = "AuthorizationBehavior rejects a null current user")]
-    public void Constructor_WhenCurrentUserIsNull_ThrowsArgumentNullException()
-    {
-        var exception = Should.Throw<ArgumentNullException>(() =>
-            new AuthorizationBehavior<TestCommand, Result, AuthenticatedHandler>(null!));
-
-        exception.ParamName.ShouldBe("currentUser");
-    }
-
-    [Fact(DisplayName = "AuthorizationBehavior rejects a null request")]
-    public async Task BeforeAsync_WhenRequestIsNull_ThrowsArgumentNullException()
-    {
-        var behavior = new AuthorizationBehavior<TestCommand, Result, AuthenticatedHandler>(
-            new RecordingCurrentUser(true));
-
-        var exception = await Should.ThrowAsync<ArgumentNullException>(() =>
-            behavior.BeforeAsync(null!, TestContext.Current.CancellationToken));
-
-        exception.ParamName.ShouldBe("request");
-    }
-
     [Theory(DisplayName = "AuthorizationBehavior requires a matching handler that declares authorization")]
     [InlineData(typeof(TestCommandHandler))]
     [InlineData(typeof(UnrelatedHandler))]

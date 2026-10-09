@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Application.Authentication;
+namespace PANiXiDA.Core.Application.Authentication.Abstractions;
 
 /// <summary>
 /// Requires authentication and declares the permissions needed to execute a request handler.

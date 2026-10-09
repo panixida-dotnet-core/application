@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace PANiXiDA.Core.Application.Authentication;
+namespace PANiXiDA.Core.Application.Authentication.Abstractions;
 
 /// <summary>
 /// Provides transport-independent information about the current caller and its permissions.

@@ -298,6 +298,8 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 ### Handler Authorization
 
+`ICurrentUser` and `IRequireAuthorization` are defined in
+`PANiXiDA.Core.Application.Authentication.Abstractions`.
 `ICurrentUser` exposes the authenticated caller independently of HTTP or an identity
 provider: `IsAuthenticated`, nullable `UserId` and `UserName`, `Roles`,
 `TryGetClaimValue<T>`, and `HasPermission`. A service caller can be authenticated
@@ -312,7 +314,7 @@ authentication. Its static permission collections default to empty:
 - When both collections are non-empty, both conditions must be satisfied.
 
 ```csharp
-using PANiXiDA.Core.Application.Authentication;
+using PANiXiDA.Core.Application.Authentication.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.ResultPattern;

@@ -1,4 +1,4 @@
-using PANiXiDA.Core.Application.Authentication;
+using PANiXiDA.Core.Application.Authentication.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
@@ -18,8 +18,6 @@ public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentU
     where TResult : Result
     where THandler : IRequestHandler<TRequest, TResult>, IRequireAuthorization
 {
-    private readonly ICurrentUser currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
-
     /// <summary>
     /// Requires authentication, all mandatory permissions, and at least one configured alternative permission.
     /// </summary>
@@ -33,8 +31,6 @@ public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentU
         TRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
-
         if (!currentUser.IsAuthenticated)
         {
             return Task.FromResult(
@@ -50,8 +46,7 @@ public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentU
                 Result.Failure(Error.Unexpected("Permission collections cannot be null.")));
         }
 
-        if (allPermissions.Any(string.IsNullOrWhiteSpace)
-            || anyPermissions.Any(string.IsNullOrWhiteSpace))
+        if (allPermissions.Concat(anyPermissions).Any(string.IsNullOrWhiteSpace))
         {
             return Task.FromResult(
                 Result.Failure(Error.Unexpected("A permission cannot be empty or whitespace.")));
