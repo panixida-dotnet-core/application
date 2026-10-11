@@ -20,7 +20,6 @@ public sealed class CleanupTransactionBehaviorTests
         bool failRollback,
         bool failDispose)
     {
-        // Arrange
         var originalException = failOperation ? new InvalidOperationException("Operation failed.") : null;
         var unitOfWork = new TestUnitOfWork
         {
@@ -32,7 +31,6 @@ public sealed class CleanupTransactionBehaviorTests
         var expectedExceptions = new[] { originalException, unitOfWork.RollbackException, unitOfWork.DisposeException }
             .OfType<Exception>().ToArray();
 
-        // Act
         var actualException = await Record.ExceptionAsync(async () =>
         {
             Exception? caughtException = null;
@@ -54,7 +52,6 @@ public sealed class CleanupTransactionBehaviorTests
             }
         });
 
-        // Assert
         unitOfWork.RollbackTransactionCalls.ShouldBe(1);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
         if (expectedExceptions.Length == 0)
@@ -95,7 +92,6 @@ public sealed class CleanupTransactionBehaviorTests
     [InlineData(true)]
     public async Task FinallyAsync_WhenOnlyCleanupIsCanceled_PreservesCancellation(bool cancelDispose)
     {
-        // Arrange
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
         var exception = new OperationCanceledException(cancellation.Token);
@@ -107,11 +103,9 @@ public sealed class CleanupTransactionBehaviorTests
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var task = behavior.FinallyAsync(new TestCommand(), null, null, cancellation.Token);
         var actualException = await Record.ExceptionAsync(() => task);
 
-        // Assert
         actualException.ShouldBeSameAs(exception);
         task.IsCanceled.ShouldBeTrue();
         unitOfWork.LastCancellationToken.ShouldBe(cancellation.Token);
@@ -121,7 +115,6 @@ public sealed class CleanupTransactionBehaviorTests
     [Fact(DisplayName = "Cleanup aggregates rollback cancellation with the original failure")]
     public async Task FinallyAsync_WhenRollbackIsCanceledAndOperationFailed_AggregatesFailures()
     {
-        // Arrange
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
         var originalException = new InvalidOperationException("Operation failed.");
@@ -133,11 +126,9 @@ public sealed class CleanupTransactionBehaviorTests
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var task = behavior.FinallyAsync(new TestCommand(), null, originalException, cancellation.Token);
         var actualException = await Record.ExceptionAsync(() => task);
 
-        // Assert
         actualException.ShouldBeOfType<AggregateException>().InnerExceptions
             .ShouldBe(new Exception[] { originalException, rollbackException });
         task.IsFaulted.ShouldBeTrue();
@@ -147,7 +138,6 @@ public sealed class CleanupTransactionBehaviorTests
     [Fact(DisplayName = "Cleanup preserves an existing aggregate when it is the only failure")]
     public async Task FinallyAsync_WhenOnlyRollbackThrowsAggregate_PreservesInstance()
     {
-        // Arrange
         var rollbackException = new AggregateException(
             new InvalidOperationException("Rollback failed."),
             new InvalidOperationException("Transaction disposal failed."));
@@ -158,11 +148,9 @@ public sealed class CleanupTransactionBehaviorTests
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None));
 
-        // Assert
         actualException.ShouldBeSameAs(rollbackException);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
@@ -170,7 +158,6 @@ public sealed class CleanupTransactionBehaviorTests
     [Fact(DisplayName = "Cleanup retains failures already aggregated by the unit of work")]
     public async Task FinallyAsync_WhenRollbackThrowsAggregate_PreservesNestedFailures()
     {
-        // Arrange
         var originalException = new InvalidOperationException("Operation failed.");
         var rollbackException = new InvalidOperationException("Rollback failed.");
         var disposeException = new InvalidOperationException("Transaction disposal failed.");
@@ -182,11 +169,9 @@ public sealed class CleanupTransactionBehaviorTests
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), null, originalException, CancellationToken.None));
 
-        // Assert
         var aggregate = actualException.ShouldBeOfType<AggregateException>();
         aggregate.InnerExceptions.ShouldBe(new Exception[] { originalException, cleanupException });
         aggregate.Flatten().InnerExceptions.ShouldBe(new Exception[] { originalException, rollbackException, disposeException });
@@ -196,16 +181,13 @@ public sealed class CleanupTransactionBehaviorTests
     [Fact(DisplayName = "Cleanup propagates disposal failures after successful commands without rolling back")]
     public async Task FinallyAsync_WhenSuccessfulCommandDisposalFails_PreservesFailure()
     {
-        // Arrange
         var exception = new InvalidOperationException("Dispose failed.");
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true, DisposeException = exception };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None));
 
-        // Assert
         actualException.ShouldBeSameAs(exception);
         unitOfWork.RollbackTransactionCalls.ShouldBe(0);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
