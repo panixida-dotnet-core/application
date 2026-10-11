@@ -12,6 +12,8 @@ internal sealed class TestUnitOfWork : IUnitOfWork
     public int DisposeTransactionCalls { get; private set; }
     public CancellationToken LastCancellationToken { get; private set; }
     public bool HasActiveTransaction { get; set; }
+    public Exception? RollbackException { get; init; }
+    public Exception? DisposeException { get; init; }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
@@ -52,6 +54,11 @@ internal sealed class TestUnitOfWork : IUnitOfWork
         RollbackTransactionCalls++;
         LastCancellationToken = cancellationToken;
 
+        if (RollbackException is not null)
+        {
+            throw RollbackException;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -59,6 +66,11 @@ internal sealed class TestUnitOfWork : IUnitOfWork
     {
         DisposeTransactionCalls++;
         HasActiveTransaction = false;
+
+        if (DisposeException is not null)
+        {
+            throw DisposeException;
+        }
 
         return ValueTask.CompletedTask;
     }
