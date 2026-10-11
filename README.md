@@ -278,6 +278,8 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
 
+Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
+
 Domain event publication and transaction behaviors require `ICommand<TResult>` and do not apply to `IQuery<TResult>` or plain `IRequest<TResult>` implementations. Query pipelines retain request validation and exclude these command-only behaviors. Directly closing `PublishDomainEventsBehavior` for a query or plain request is no longer supported.
 
 A consuming mediator implementation should register these behaviors in a deterministic order. A typical command pipeline is:

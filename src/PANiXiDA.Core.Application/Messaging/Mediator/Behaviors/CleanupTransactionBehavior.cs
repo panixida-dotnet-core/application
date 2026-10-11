@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Persistence;
@@ -23,6 +25,11 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
     /// <param name="exception">The exception thrown during command processing, if any.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <remarks>
+    /// Disposal is attempted even when rollback fails. A single cleanup failure is rethrown unchanged.
+    /// Multiple failures, including the supplied exception, are reported in an <see cref="AggregateException" />.
+    /// If cleanup succeeds, propagating the supplied exception remains the caller's responsibility.
+    /// </remarks>
     public async Task FinallyAsync(
         TCommand request,
         TResult? result,
@@ -34,11 +41,44 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
             return;
         }
 
+        List<Exception>? cleanupExceptions = null;
+
         if (exception is not null || result is null || !result.IsSuccess)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            try
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackException)
+            {
+                cleanupExceptions = [rollbackException];
+            }
         }
 
-        await unitOfWork.DisposeTransactionAsync();
+        try
+        {
+            await unitOfWork.DisposeTransactionAsync();
+        }
+        catch (Exception disposeException)
+        {
+            (cleanupExceptions ??= []).Add(disposeException);
+        }
+
+        if (cleanupExceptions is null)
+        {
+            return;
+        }
+
+        if (exception is not null)
+        {
+            cleanupExceptions.Insert(0, exception);
+        }
+
+        if (cleanupExceptions.Count == 1)
+        {
+            ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
+        }
+
+        throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
     }
 }
