@@ -74,11 +74,11 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
             cleanupExceptions.Insert(0, exception);
         }
 
-        if (cleanupExceptions.Count == 1)
+        if (cleanupExceptions.Count > 1)
         {
-            ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
+            throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
         }
 
-        throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
+        ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
     }
 }
