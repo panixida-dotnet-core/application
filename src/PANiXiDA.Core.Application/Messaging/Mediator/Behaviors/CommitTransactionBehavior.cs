@@ -1,5 +1,6 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Persistence;
 
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
@@ -9,11 +10,13 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// </summary>
 /// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the command.</typeparam>
+/// <typeparam name="THandler">The handler requiring an automatically managed transaction.</typeparam>
 /// <param name="unitOfWork">The unit of work used to manage transactions.</param>
-public sealed class CommitTransactionBehavior<TCommand, TResult>(IUnitOfWork unitOfWork)
+public sealed class CommitTransactionBehavior<TCommand, TResult, THandler>(IUnitOfWork unitOfWork)
     : IAfterRequestBehavior<TCommand, TResult>
     where TCommand : ICommand<TResult>
     where TResult : Result
+    where THandler : IRequestHandler<TCommand, TResult>, IRequireTransaction
 {
     /// <summary>
     /// Commits the active transaction when the command succeeded.

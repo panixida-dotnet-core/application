@@ -16,7 +16,7 @@ public sealed class BeginTransactionBehavior<TCommand, TResult, THandler>(IUnitO
     : IBeforeRequestBehavior<TCommand, TResult, THandler>
     where TCommand : ICommand<TResult>
     where TResult : Result
-    where THandler : IRequestHandler<TCommand, TResult>
+    where THandler : IRequestHandler<TCommand, TResult>, IRequireTransaction
 {
     /// <summary>
     /// Begins a transaction before the command handler runs.
