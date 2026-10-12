@@ -37,7 +37,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.0" />
 </ItemGroup>
 ```
 
@@ -273,10 +273,10 @@ The package includes reusable mediator behavior implementations for authorizatio
 
 - `AuthorizationBehavior<TRequest, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
-- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
+- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler implementing `IRequireTransaction` runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
-- `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
-- `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
+- `CommitTransactionBehavior<TCommand, TResult, THandler>` commits the active transaction after a successful command result for a handler implementing `IRequireTransaction`.
+- `CleanupTransactionBehavior<TCommand, TResult, THandler>` rolls back failed command transactions and disposes transaction resources for a handler implementing `IRequireTransaction`.
 
 Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
 
@@ -287,16 +287,46 @@ A consuming mediator implementation should register these behaviors in a determi
 ```text
 before:  AuthorizationBehavior
 before:  ValidationBehavior
-before:  BeginTransactionBehavior
+before:  BeginTransactionBehavior (handlers implementing IRequireTransaction)
 handler: ICommandHandler<TCommand, TResult>
 after:   PublishDomainEventsBehavior
-after:   CommitTransactionBehavior
-finally: CleanupTransactionBehavior
+after:   CommitTransactionBehavior (handlers implementing IRequireTransaction)
+finally: CleanupTransactionBehavior (handlers implementing IRequireTransaction)
 ```
 
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
+
+### Handler Transactions
+
+Implement `IRequireTransaction` from `PANiXiDA.Core.Application.Persistence` on a
+command handler to require an automatic transaction. Authorization is independent:
+a handler may implement `IRequireAuthorization`, `IRequireTransaction`, both, or neither.
+
+The consuming mediator must bind the actual handler type as `THandler` for all three
+transaction behaviors and skip them for unmarked handlers. Commit and cleanup still
+implement the two-parameter `IAfterRequestBehavior<TCommand, TResult>` and
+`IFinallyRequestBehavior<TCommand, TResult>` contracts. Their implementation types now
+have three generic parameters. Query and plain request handlers cannot use these
+command-only behaviors, even when they implement the marker.
+
+Handlers that only upload files or call external services can omit the marker.
+Handlers that manage their own transaction also omit it and use `IUnitOfWork`,
+including `ExecuteInTransactionAsync`, taking responsibility for commit, rollback,
+and disposal. Omitting the marker skips automatic transaction management; it does
+not suppress an existing transaction or transactions created by the persistence provider.
+
+Domain event publication remains independent of the marker. A mediator using an
+outbox must persist events before committing the transaction and dispatch them after
+commit. A manual commit inside the handler occurs before `PublishDomainEventsBehavior`;
+subsequent event publication is not atomic with that commit. Delivery guarantees and
+outbox persistence without an automatic transaction belong to the infrastructure adapter.
+
+Version 6 is a breaking change: mark existing command handlers that must retain their
+automatic transactions and update registrations of `CommitTransactionBehavior<,>` and
+`CleanupTransactionBehavior<,>` to the three-parameter implementations. Infrastructure
+adapters must support these handler-aware registrations before upgrading this package.
 
 ### Handler Authorization
 
@@ -490,6 +520,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Persistence
 
+- `IRequireTransaction` declares automatic transaction requirements on command handlers.
 - `IUnitOfWork` defines persistence and transaction operations.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
 - Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
