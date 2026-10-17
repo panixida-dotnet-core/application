@@ -302,7 +302,7 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 ### Optimistic Concurrency
 
-`ConcurrencyException` in `PANiXiDA.Core.Application.Persistence` is the provider-independent signal that a persistence operation could not match the expected entity version. It also covers deletion after the entity was read. Adapters can supply a diagnostic message and preserve the original provider exception as `InnerException` with `new ConcurrencyException(message, providerException)`.
+`ConcurrencyException` in `PANiXiDA.Core.Application.Persistence.Errors` is the provider-independent signal that a persistence operation could not match the expected entity version. It also covers deletion after the entity was read. Adapters can supply a diagnostic message and preserve the original provider exception as `InnerException` with `new ConcurrencyException(message, providerException)`.
 
 An adapter that detects the conflict from an affected-row or matched-document count can use `new ConcurrencyException()` without an inner exception. Connection failures, timeouts, and arbitrary database errors must not be classified as optimistic concurrency conflicts.
 

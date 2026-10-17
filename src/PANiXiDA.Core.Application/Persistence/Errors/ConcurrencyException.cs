@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Application.Persistence;
+namespace PANiXiDA.Core.Application.Persistence.Errors;
 
 /// <summary>
 /// Indicates that a persistence operation could not match the expected entity version.

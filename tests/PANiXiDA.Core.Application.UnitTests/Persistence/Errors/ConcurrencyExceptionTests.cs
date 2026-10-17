@@ -1,6 +1,6 @@
-using PANiXiDA.Core.Application.Persistence;
+using PANiXiDA.Core.Application.Persistence.Errors;
 
-namespace PANiXiDA.Core.Application.UnitTests.Persistence;
+namespace PANiXiDA.Core.Application.UnitTests.Persistence.Errors;
 
 public sealed class ConcurrencyExceptionTests
 {

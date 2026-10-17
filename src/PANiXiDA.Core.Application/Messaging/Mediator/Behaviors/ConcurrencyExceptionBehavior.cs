@@ -1,6 +1,6 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
-using PANiXiDA.Core.Application.Persistence;
+using PANiXiDA.Core.Application.Persistence.Errors;
 
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 

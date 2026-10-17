@@ -1,6 +1,6 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
-using PANiXiDA.Core.Application.Persistence;
+using PANiXiDA.Core.Application.Persistence.Errors;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 
