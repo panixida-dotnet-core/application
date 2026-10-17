@@ -7,6 +7,11 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 /// </summary>
 /// <typeparam name="TRequest">The request type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the request.</typeparam>
+/// <remarks>
+/// Finally behaviors perform cleanup without replacing the request result or handling the processing exception.
+/// A consuming mediator completes all finally behaviors before invoking any exception behavior.
+/// Cleanup failures must propagate without being converted to failure results by exception behaviors.
+/// </remarks>
 public interface IFinallyRequestBehavior<TRequest, in TResult>
     where TRequest : IRequest<TResult>
     where TResult : Result

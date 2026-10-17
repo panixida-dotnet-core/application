@@ -16,13 +16,14 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 - CQRS request contracts: `ICommand<TResult>`, `IQuery<TResult>`, and `IRequest<TResult>`.
 - Mediator contracts for command/query dispatch and handler implementation.
-- Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
+- Pipeline behavior contracts for before, after, finally, and exception request stages, including failure-result proposals after successful cleanup.
 - Built-in behaviors for permission-based authorization, FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - Transport-independent current caller information and handler-level authentication and permission requirements.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- Provider-independent optimistic concurrency exceptions and a behavior that maps them to conflict results.
 - File storage abstraction for uploading, downloading, and deleting content by caller-supplied keys, including signed URLs for direct transfers.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -37,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.0" />
 </ItemGroup>
 ```
 
@@ -269,7 +270,7 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 
 ## Request Behaviors
 
-The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, and domain event publication:
+The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling:
 
 - `AuthorizationBehavior<TRequest, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
@@ -277,8 +278,9 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
+- `ConcurrencyExceptionBehavior<TRequest, TResult>` offers a conflict failure for a direct `ConcurrencyException` after successful cleanup, unless the request already produced a failed result.
 
-Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
+Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless an explicitly configured exception behavior handles it. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
 
 Domain event publication and transaction behaviors require `ICommand<TResult>` and do not apply to `IQuery<TResult>` or plain `IRequest<TResult>` implementations. Query pipelines retain request validation and exclude these command-only behaviors. Directly closing `PublishDomainEventsBehavior` for a query or plain request is no longer supported.
 
@@ -297,6 +299,25 @@ finally: CleanupTransactionBehavior
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
+
+### Optimistic Concurrency
+
+`ConcurrencyException` in `PANiXiDA.Core.Application.Persistence` is the provider-independent signal that a persistence operation could not match the expected entity version. It also covers deletion after the entity was read. Adapters can supply a diagnostic message and preserve the original provider exception as `InnerException` with `new ConcurrencyException(message, providerException)`.
+
+An adapter that detects the conflict from an affected-row or matched-document count can use `new ConcurrencyException()` without an inner exception. Connection failures, timeouts, and arbitrary database errors must not be classified as optimistic concurrency conflicts.
+
+`IExceptionRequestBehavior<TRequest, TResult>.HandleExceptionAsync` receives the request, its last result (which may be null), and the non-null processing exception. It returns a non-generic failed `Result` to handle the exception, or null to decline. `ConcurrencyExceptionBehavior<TRequest, TResult>` returns `Error.Conflict` with a stable, client-safe message; diagnostic exception messages and provider details are not included. It declines existing failed results, unrelated exceptions, cancellation, and aggregates without inspecting their inner exceptions.
+
+Mediator adapters that support this stage must:
+
+1. Complete every finally behavior first, preserving the original result and processing exception for cleanup.
+2. Propagate any cleanup failure without running exception behaviors, even when the cleanup failure itself is a `ConcurrencyException`.
+3. Preserve the current result when no processing exception exists. If a failed result and a processing exception both exist, propagate the exception without replacing that failed result.
+4. For an unhandled processing exception with a null or successful result, run exception behaviors in registration order until one returns a non-null result. A returned success is a contract violation and must be rejected; the original processing exception must remain available in the reported failure.
+5. Return the offered failure directly for `Result`, or construct `Result.Failure<TValue>(failure.Errors)` for `Result<TValue>`. A failed `Result` cannot be cast to `Result<TValue>`.
+6. When all exception behaviors decline, propagate the original exception with its original instance and stack trace.
+
+The normal before, after, and finally contracts remain unchanged. This package provides the exception-stage contract and concurrency behavior only: upgrading Application does not enable the stage in an existing mediator, translate provider exceptions, or automatically produce HTTP 409. The Wolverine adapter needs separate registration and code-generation support. Background message delivery needs an explicit policy because handling an exception as a result changes retry behavior.
 
 ### Handler Authorization
 
@@ -476,6 +497,8 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IBeforeRequestBehavior<TRequest, TResult, THandler>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
 - `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
+- `IExceptionRequestBehavior<TRequest, TResult>` offers a failure result for an expected processing exception after successful cleanup; null leaves the exception unhandled.
+- `ConcurrencyExceptionBehavior<TRequest, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.
 
 ### Validation
 
@@ -492,6 +515,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 - `IUnitOfWork` defines persistence and transaction operations.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
+- `ConcurrencyException` reports an optimistic concurrency conflict independently of a database provider.
 - Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
 
 ### Querying Models
