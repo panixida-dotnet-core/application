@@ -38,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.0" />
 </ItemGroup>
 ```
 
@@ -277,10 +277,10 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
-- `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions and disposes transaction resources.
-- `ConcurrencyExceptionBehavior<TRequest, TResult>` offers a conflict failure for a direct `ConcurrencyException` after successful cleanup, unless the request already produced a failed result.
+- `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
+- `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
 
-Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless an explicitly configured exception behavior handles it. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
+Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless a configured finally behavior handles it by returning a new failure result. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
 
 Domain event publication and transaction behaviors require `ICommand<TResult>` and do not apply to `IQuery<TResult>` or plain `IRequest<TResult>` implementations. Query pipelines retain request validation and exclude these command-only behaviors. Directly closing `PublishDomainEventsBehavior` for a query or plain request is no longer supported.
 
@@ -294,6 +294,7 @@ handler: ICommandHandler<TCommand, TResult>
 after:   PublishDomainEventsBehavior
 after:   CommitTransactionBehavior
 finally: CleanupTransactionBehavior
+finally: ConcurrencyExceptionBehavior
 ```
 
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
@@ -306,18 +307,20 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 An adapter that detects the conflict from an affected-row or matched-document count can use `new ConcurrencyException()` without an inner exception. Connection failures, timeouts, and arbitrary database errors must not be classified as optimistic concurrency conflicts.
 
-`IExceptionRequestBehavior<TRequest, TResult>.HandleExceptionAsync` receives the request, its last result (which may be null), and the non-null processing exception. It returns a non-generic failed `Result` to handle the exception, or null to decline. `ConcurrencyExceptionBehavior<TRequest, TResult>` returns `Error.Conflict` with a stable, client-safe message; diagnostic exception messages and provider details are not included. It declines existing failed results, unrelated exceptions, cancellation, and aggregates without inspecting their inner exceptions.
+`IFinallyRequestBehavior<TRequest, TResult>.FinallyAsync` returns `Task<Result?>`. Every behavior receives the current result and returns it unchanged or supplies a replacement for the next behavior. Null means that no result exists; it is not a signal to discard an existing result. Cleanup returns the supplied object, including a successful `Result<T>` and its value.
 
-Mediator adapters that support this stage must:
+`ConcurrencyExceptionBehavior<TRequest, TResult>` returns a new failure containing `Error.Conflict` with a stable, client-safe message for a direct `ConcurrencyException` when the current result is null or successful. Diagnostic exception messages and provider details are not included. It passes the result through unchanged when there is no exception, when the result has already failed, or when the exception is unrelated, canceled, wrapped, or aggregated.
 
-1. Complete every finally behavior first, preserving the original result and processing exception for cleanup.
-2. Propagate any cleanup failure without running exception behaviors, even when the cleanup failure itself is a `ConcurrencyException`.
-3. Preserve the current result when no processing exception exists. If a failed result and a processing exception both exist, propagate the exception without replacing that failed result.
-4. For an unhandled processing exception with a null or successful result, run exception behaviors in registration order until one returns a non-null result. A returned success is a contract violation and must be rejected; the original processing exception must remain available in the reported failure.
-5. Return the offered failure directly for `Result`, or construct `Result.Failure<TValue>(failure.Errors)` for `Result<TValue>`. A failed `Result` cannot be cast to `Result<TValue>`.
-6. When all exception behaviors decline, propagate the original exception with its original instance and stack trace.
+Mediator adapters must implement the following finally semantics:
 
-The normal before, after, and finally contracts remain unchanged. This package provides the exception-stage contract and concurrency behavior only: upgrading Application does not enable the stage in an existing mediator, translate provider exceptions, or automatically produce HTTP 409. The Wolverine adapter needs separate registration and code-generation support. Background message delivery needs an explicit policy because handling an exception as a result changes retry behavior.
+1. Run all finally behaviors in registration order, passing the current result to each one. Keep the original processing exception available to every behavior, even after another behavior returns a conflict.
+2. Preserve returned instances that already match `TResult`. For a non-generic failure returned to a `Result<TValue>` request, construct `Result.Failure<TValue>(failure.Errors)` before calling the next behavior. Do not cast an untyped failure to `Result<TValue>`.
+3. Treat a new failure returned for a processing exception as a proposal to handle that exception. Passing through the same result, including an existing failed result, does not handle an exception. A successful result never handles an exception.
+4. Preserve existing failure results. Replacing a non-null result with null or returning a successful result incompatible with `TResult` is a contract violation.
+5. Collect finally failures separately and continue running the remaining behaviors. If any finally behavior fails, propagate the failures together with the original processing exception, regardless of result replacements. This also applies when a cleanup failure itself is a `ConcurrencyException`. Preserve a single failure unchanged and aggregate multiple failures without duplicating the original exception.
+6. Accept the proposed exception handling only after all finally behaviors succeed. Otherwise, propagate an unhandled processing exception with its original instance and stack trace.
+
+Version 6.0 changes the public finally contract from `Task` to `Task<Result?>`. Existing cleanup implementations must return the supplied result; the before and after contracts are unchanged. There is no separate exception-behavior interface. The Wolverine adapter requires corresponding code-generation changes and finally registration for the concurrency behavior. This Application package alone does not translate provider exceptions or automatically produce HTTP 409. Background message delivery needs an explicit policy because handling an exception as a result changes retry behavior.
 
 ### Handler Authorization
 
@@ -496,8 +499,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IReadModel` identifies query and read repository result payloads.
 - `IBeforeRequestBehavior<TRequest, TResult, THandler>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
-- `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
-- `IExceptionRequestBehavior<TRequest, TResult>` offers a failure result for an expected processing exception after successful cleanup; null leaves the exception unhandled.
+- `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and returns the current result or a replacement for the next finally behavior.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.
 
 ### Validation

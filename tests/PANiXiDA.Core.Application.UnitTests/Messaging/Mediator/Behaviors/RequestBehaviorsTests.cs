@@ -145,9 +145,11 @@ public sealed class RequestBehaviorsTests
     {
         var unitOfWork = new TestUnitOfWork();
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var originalResult = Result.Success();
 
-        await behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None);
+        var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
 
+        result.ShouldBeSameAs(originalResult);
         unitOfWork.RollbackTransactionCalls.ShouldBe(0);
         unitOfWork.DisposeTransactionCalls.ShouldBe(0);
     }
@@ -160,9 +162,11 @@ public sealed class RequestBehaviorsTests
             HasActiveTransaction = true
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var originalResult = Result.Success();
 
-        await behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None);
+        var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
 
+        result.ShouldBeSameAs(originalResult);
         unitOfWork.RollbackTransactionCalls.ShouldBe(0);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
@@ -175,9 +179,11 @@ public sealed class RequestBehaviorsTests
             HasActiveTransaction = true
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var originalResult = CreateFailureResult();
 
-        await behavior.FinallyAsync(new TestCommand(), CreateFailureResult(), null, CancellationToken.None);
+        var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
 
+        result.ShouldBeSameAs(originalResult);
         unitOfWork.RollbackTransactionCalls.ShouldBe(1);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
@@ -191,8 +197,9 @@ public sealed class RequestBehaviorsTests
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
 
-        await behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None);
+        var result = await behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None);
 
+        result.ShouldBeNull();
         unitOfWork.RollbackTransactionCalls.ShouldBe(1);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
@@ -205,13 +212,15 @@ public sealed class RequestBehaviorsTests
             HasActiveTransaction = true
         };
         var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var originalResult = Result.Success();
 
-        await behavior.FinallyAsync(
+        var result = await behavior.FinallyAsync(
             new TestCommand(),
-            Result.Success(),
+            originalResult,
             new InvalidOperationException(),
             CancellationToken.None);
 
+        result.ShouldBeSameAs(originalResult);
         unitOfWork.RollbackTransactionCalls.ShouldBe(1);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
