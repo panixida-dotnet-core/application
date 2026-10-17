@@ -1,5 +1,4 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Persistence;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
@@ -14,7 +13,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
     [InlineData(true)]
     public async Task HandleExceptionAsync_WhenResultIsMissingOrSuccessful_ReturnsConflict(bool hasResult)
     {
-        IExceptionRequestBehavior<TestCommand, Result> behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
+        var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
         var exception = new ConcurrencyException("Private provider diagnostics.");
         var originalResult = hasResult ? Result.Success() : null;
 
@@ -35,7 +34,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
     [InlineData(true)]
     public async Task HandleExceptionAsync_WhenRequestReturnsGenericResult_ReturnsConflict(bool hasResult)
     {
-        IExceptionRequestBehavior<ValueCommand, Result<string>> behavior = new ConcurrencyExceptionBehavior<ValueCommand, Result<string>>();
+        var behavior = new ConcurrencyExceptionBehavior<ValueCommand, Result<string>>();
         var originalResult = hasResult ? Result.Success("saved value") : null;
 
         var result = await behavior.HandleExceptionAsync(
@@ -76,26 +75,31 @@ public sealed class ConcurrencyExceptionBehaviorTests
     }
 
     [Theory(DisplayName = "ConcurrencyExceptionBehavior declines unrelated, wrapped, aggregate and cancellation failures")]
-    [MemberData(nameof(UnhandledExceptions))]
-    public async Task HandleExceptionAsync_WhenExceptionIsNotDirectConcurrency_DeclinesHandling(Exception exception)
+    [InlineData("unexpected")]
+    [InlineData("canceled")]
+    [InlineData("task-canceled")]
+    [InlineData("wrapped")]
+    [InlineData("aggregate")]
+    [InlineData("mixed-aggregate")]
+    public async Task HandleExceptionAsync_WhenExceptionIsNotDirectConcurrency_DeclinesHandling(string scenario)
     {
         var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
+        Exception exception = scenario switch
+        {
+            "unexpected" => new InvalidOperationException("Unexpected failure."),
+            "canceled" => new OperationCanceledException(),
+            "task-canceled" => new TaskCanceledException(),
+            "wrapped" => new InvalidOperationException("Wrapper failure.", new ConcurrencyException()),
+            "aggregate" => new AggregateException(new ConcurrencyException()),
+            "mixed-aggregate" => new AggregateException(new ConcurrencyException(), new InvalidOperationException("Rollback failed.")),
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, "Unknown exception scenario.")
+        };
 
         var result = await behavior.HandleExceptionAsync(
             new TestCommand(), null, exception, TestContext.Current.CancellationToken);
 
         result.ShouldBeNull();
     }
-
-    public static TheoryData<Exception> UnhandledExceptions =>
-    [
-        new InvalidOperationException("Unexpected failure."),
-        new OperationCanceledException(),
-        new TaskCanceledException(),
-        new InvalidOperationException("Wrapper failure.", new ConcurrencyException()),
-        new AggregateException(new ConcurrencyException()),
-        new AggregateException(new ConcurrencyException(), new InvalidOperationException("Rollback failed."))
-    ];
 
     [Fact(DisplayName = "ConcurrencyExceptionBehavior rejects a null request")]
     public async Task HandleExceptionAsync_WhenRequestIsNull_ThrowsArgumentNullException()
