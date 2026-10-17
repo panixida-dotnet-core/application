@@ -36,9 +36,15 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
         Exception? exception,
         CancellationToken cancellationToken)
     {
+        await CleanupAsync(result, exception, cancellationToken);
+        return result;
+    }
+
+    private async Task CleanupAsync(TResult? result, Exception? exception, CancellationToken cancellationToken)
+    {
         if (!unitOfWork.HasActiveTransaction)
         {
-            return result;
+            return;
         }
 
         List<Exception>? cleanupExceptions = null;
@@ -64,21 +70,21 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
             (cleanupExceptions ??= []).Add(disposeException);
         }
 
-        if (cleanupExceptions is not null)
+        if (cleanupExceptions is null)
         {
-            if (exception is not null)
-            {
-                cleanupExceptions.Insert(0, exception);
-            }
-
-            if (cleanupExceptions.Count > 1)
-            {
-                throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
-            }
-
-            ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
+            return;
         }
 
-        return result;
+        if (exception is not null)
+        {
+            cleanupExceptions.Insert(0, exception);
+        }
+
+        if (cleanupExceptions.Count > 1)
+        {
+            throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
+        }
+
+        ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
     }
 }

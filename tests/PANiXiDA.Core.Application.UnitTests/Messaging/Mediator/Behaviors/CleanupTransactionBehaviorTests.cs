@@ -38,6 +38,21 @@ public sealed class CleanupTransactionBehaviorTests
         unitOfWork.DisposeTransactionCalls.ShouldBe(0);
     }
 
+    [Theory(DisplayName = "Cleanup preserves a missing generic result and rolls back an active transaction")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FinallyAsync_WhenGenericResultIsMissing_ReturnsNull(bool hasActiveTransaction)
+    {
+        var unitOfWork = new TestUnitOfWork { HasActiveTransaction = hasActiveTransaction };
+        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>>(unitOfWork);
+
+        var result = await behavior.FinallyAsync(new ValueCommand(), null, null, TestContext.Current.CancellationToken);
+
+        result.ShouldBeNull();
+        unitOfWork.RollbackTransactionCalls.ShouldBe(hasActiveTransaction ? 1 : 0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(hasActiveTransaction ? 1 : 0);
+    }
+
     [Theory(DisplayName = "Cleanup preserves single failures and aggregates multiple failures")]
     [InlineData(false, false, false)]
     [InlineData(true, false, false)]
