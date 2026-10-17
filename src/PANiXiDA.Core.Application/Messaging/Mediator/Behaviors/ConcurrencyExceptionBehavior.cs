@@ -26,15 +26,12 @@ public sealed class ConcurrencyExceptionBehavior<TRequest, TResult> : IFinallyRe
     /// <param name="exception">The processing exception to inspect, if any.</param>
     /// <param name="cancellationToken">The cancellation token for the operation.</param>
     /// <returns>A conflict failure result for a handled exception, or the supplied result unchanged.</returns>
-    /// <exception cref="ArgumentNullException">The request is null.</exception>
     public Task<Result?> FinallyAsync(
         TRequest request,
         TResult? result,
         Exception? exception,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
-
         if (result is { IsFailure: true } || exception is not ConcurrencyException)
         {
             return Task.FromResult<Result?>(result);

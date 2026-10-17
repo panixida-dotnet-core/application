@@ -108,17 +108,6 @@ public sealed class ConcurrencyExceptionBehaviorTests
         result.ShouldBeSameAs(originalResult);
     }
 
-    [Fact(DisplayName = "ConcurrencyExceptionBehavior rejects a null request")]
-    public async Task FinallyAsync_WhenRequestIsNull_ThrowsArgumentNullException()
-    {
-        var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
-
-        var exception = await Should.ThrowAsync<ArgumentNullException>(() => behavior.FinallyAsync(
-            null!, null, new ConcurrencyException(), TestContext.Current.CancellationToken));
-
-        exception.ParamName.ShouldBe("request");
-    }
-
     [Theory(DisplayName = "ConcurrencyExceptionBehavior passes through results when no exception occurred")]
     [InlineData("missing")]
     [InlineData("success")]
