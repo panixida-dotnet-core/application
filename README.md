@@ -38,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.0" />
 </ItemGroup>
 ```
 
@@ -303,24 +303,11 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 ### Optimistic Concurrency
 
-`ConcurrencyException` in `PANiXiDA.Core.Application.Persistence.Errors` is the provider-independent signal that a persistence operation could not match the expected entity version. It also covers deletion after the entity was read. Adapters can supply a diagnostic message and preserve the original provider exception as `InnerException` with `new ConcurrencyException(message, providerException)`.
+Persistence adapters report optimistic concurrency conflicts with `ConcurrencyException` from `PANiXiDA.Core.Application.Persistence.Errors`. `ConcurrencyExceptionBehavior<TRequest, TResult>` converts direct conflicts to `Error.Conflict`, preserving existing failed results and leaving other exceptions unhandled.
 
-An adapter that detects the conflict from an affected-row or matched-document count can use `new ConcurrencyException()` without an inner exception. Connection failures, timeouts, and arbitrary database errors must not be classified as optimistic concurrency conflicts.
+`FinallyAsync` now returns `Task<Result?>`: behaviors pass the current result through or replace it. Mediator adapters must pass the returned result to the next behavior and accept exception handling only after all cleanup succeeds. Cleanup failures retain the original processing exception.
 
-`IFinallyRequestBehavior<TRequest, TResult>.FinallyAsync` returns `Task<Result?>`. Every behavior receives the current result and returns it unchanged or supplies a replacement for the next behavior. Null means that no result exists; it is not a signal to discard an existing result. Cleanup returns the supplied object, including a successful `Result<T>` and its value.
-
-`ConcurrencyExceptionBehavior<TRequest, TResult>` returns a new failure containing `Error.Conflict` with a stable, client-safe message for a direct `ConcurrencyException` when the current result is null or successful. Diagnostic exception messages and provider details are not included. It passes the result through unchanged when there is no exception, when the result has already failed, or when the exception is unrelated, canceled, wrapped, or aggregated.
-
-Mediator adapters must implement the following finally semantics:
-
-1. Run all finally behaviors in registration order, passing the current result to each one. Keep the original processing exception available to every behavior, even after another behavior returns a conflict.
-2. Preserve returned instances that already match `TResult`. For a non-generic failure returned to a `Result<TValue>` request, construct `Result.Failure<TValue>(failure.Errors)` before calling the next behavior. Do not cast an untyped failure to `Result<TValue>`.
-3. Treat a new failure returned for a processing exception as a proposal to handle that exception. Passing through the same result, including an existing failed result, does not handle an exception. A successful result never handles an exception.
-4. Preserve existing failure results. Replacing a non-null result with null or returning a successful result incompatible with `TResult` is a contract violation.
-5. Collect finally failures separately and continue running the remaining behaviors. If any finally behavior fails, propagate the failures together with the original processing exception, regardless of result replacements. This also applies when a cleanup failure itself is a `ConcurrencyException`. Preserve a single failure unchanged and aggregate multiple failures without duplicating the original exception.
-6. Accept the proposed exception handling only after all finally behaviors succeed. Otherwise, propagate an unhandled processing exception with its original instance and stack trace.
-
-Version 6.0 changes the public finally contract from `Task` to `Task<Result?>`. Existing cleanup implementations must return the supplied result; the before and after contracts are unchanged. There is no separate exception-behavior interface. The Wolverine adapter requires corresponding code-generation changes and finally registration for the concurrency behavior. This Application package alone does not translate provider exceptions or automatically produce HTTP 409. Background message delivery needs an explicit policy because handling an exception as a result changes retry behavior.
+Existing finally implementations must adopt the new return type. Provider exception translation and Wolverine integration require separate adapter changes.
 
 ### Handler Authorization
 
