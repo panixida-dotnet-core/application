@@ -1,4 +1,5 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
+using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 
@@ -6,6 +7,52 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 
 public sealed class CleanupTransactionBehaviorTests
 {
+    [Theory(DisplayName = "Cleanup preserves generic results with and without an active transaction")]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task FinallyAsync_WhenGenericResultExists_ReturnsOriginalResult(bool hasActiveTransaction, bool isFailure)
+    {
+        var unitOfWork = new TestUnitOfWork { HasActiveTransaction = hasActiveTransaction };
+        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>>(unitOfWork);
+        var originalResult = isFailure ? Result.Failure<string>(Error.Validation("Invalid value.")) : Result.Success("saved value");
+
+        var result = await behavior.FinallyAsync(new ValueCommand(), originalResult, null, TestContext.Current.CancellationToken);
+
+        result.ShouldBeSameAs(originalResult);
+        unitOfWork.RollbackTransactionCalls.ShouldBe(hasActiveTransaction && isFailure ? 1 : 0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(hasActiveTransaction ? 1 : 0);
+    }
+
+    [Fact(DisplayName = "Cleanup preserves a missing result when there is no active transaction")]
+    public async Task FinallyAsync_WhenResultAndTransactionAreMissing_ReturnsNull()
+    {
+        var unitOfWork = new TestUnitOfWork();
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+
+        var result = await behavior.FinallyAsync(new TestCommand(), null, null, TestContext.Current.CancellationToken);
+
+        result.ShouldBeNull();
+        unitOfWork.RollbackTransactionCalls.ShouldBe(0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(0);
+    }
+
+    [Theory(DisplayName = "Cleanup preserves a missing generic result and rolls back an active transaction")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FinallyAsync_WhenGenericResultIsMissing_ReturnsNull(bool hasActiveTransaction)
+    {
+        var unitOfWork = new TestUnitOfWork { HasActiveTransaction = hasActiveTransaction };
+        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>>(unitOfWork);
+
+        var result = await behavior.FinallyAsync(new ValueCommand(), null, null, TestContext.Current.CancellationToken);
+
+        result.ShouldBeNull();
+        unitOfWork.RollbackTransactionCalls.ShouldBe(hasActiveTransaction ? 1 : 0);
+        unitOfWork.DisposeTransactionCalls.ShouldBe(hasActiveTransaction ? 1 : 0);
+    }
+
     [Theory(DisplayName = "Cleanup preserves single failures and aggregates multiple failures")]
     [InlineData(false, false, false)]
     [InlineData(true, false, false)]
@@ -192,4 +239,6 @@ public sealed class CleanupTransactionBehaviorTests
         unitOfWork.RollbackTransactionCalls.ShouldBe(0);
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
+
+    private sealed record ValueCommand : ICommand<Result<string>>;
 }

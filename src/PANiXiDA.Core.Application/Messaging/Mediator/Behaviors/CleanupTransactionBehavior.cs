@@ -21,16 +21,16 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
     /// Rolls back the active transaction on failure and releases transaction resources.
     /// </summary>
     /// <param name="request">The command that was processed.</param>
-    /// <param name="result">The command execution result, if any.</param>
+    /// <param name="result">The current command result, if any.</param>
     /// <param name="exception">The exception thrown during command processing, if any.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <returns>The supplied result unchanged after successful cleanup.</returns>
     /// <remarks>
     /// Disposal is attempted even when rollback fails. A single cleanup failure is rethrown unchanged.
     /// Multiple failures, including the supplied exception, are reported in an <see cref="AggregateException" />.
     /// If cleanup succeeds, propagating the supplied exception remains the caller's responsibility.
     /// </remarks>
-    public async Task FinallyAsync(
+    public async Task<Result?> FinallyAsync(
         TCommand request,
         TResult? result,
         Exception? exception,
@@ -38,7 +38,7 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
     {
         if (!unitOfWork.HasActiveTransaction)
         {
-            return;
+            return result;
         }
 
         List<Exception>? cleanupExceptions = null;
@@ -64,21 +64,23 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult>(IUnitOfWork un
             (cleanupExceptions ??= []).Add(disposeException);
         }
 
-        if (cleanupExceptions is null)
+        ExceptionDispatchInfo? cleanupFailure = null;
+        if (cleanupExceptions is not null)
         {
-            return;
+            if (exception is not null)
+            {
+                cleanupExceptions.Insert(0, exception);
+            }
+
+            if (cleanupExceptions.Count > 1)
+            {
+                throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
+            }
+
+            cleanupFailure = ExceptionDispatchInfo.Capture(cleanupExceptions[0]);
         }
 
-        if (exception is not null)
-        {
-            cleanupExceptions.Insert(0, exception);
-        }
-
-        if (cleanupExceptions.Count > 1)
-        {
-            throw new AggregateException("Multiple errors occurred while cleaning up the transaction.", cleanupExceptions);
-        }
-
-        ExceptionDispatchInfo.Throw(cleanupExceptions[0]);
+        cleanupFailure?.Throw();
+        return result;
     }
 }
