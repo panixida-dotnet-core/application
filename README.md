@@ -299,6 +299,8 @@ finally: CleanupTransactionBehavior
 finally: ConcurrencyExceptionBehavior
 ```
 
+For external delivery, this order requires an outbox-backed `IEventBus`: queue events before saving, persist them atomically with business changes, and deliver them only after commit.
+
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
