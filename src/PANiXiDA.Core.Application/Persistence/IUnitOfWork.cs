@@ -6,7 +6,7 @@
 public interface IUnitOfWork
 {
     /// <summary>
-    /// Persists pending changes without committing an active transaction.
+    /// Persists pending changes without requiring or committing an active transaction.
     /// </summary>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>

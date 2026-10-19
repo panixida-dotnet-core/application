@@ -276,7 +276,7 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
 - `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
-- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result within an active transaction.
+- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result, with or without an active transaction.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.

@@ -5,7 +5,7 @@ using PANiXiDA.Core.Application.Persistence;
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 
 /// <summary>
-/// Saves pending changes after a successful command result within an active transaction.
+/// Saves pending changes after a successful command result.
 /// </summary>
 /// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the command.</typeparam>
@@ -18,7 +18,7 @@ public sealed class SaveChangesBehavior<TCommand, TResult>(IUnitOfWork unitOfWor
     /// <inheritdoc />
     public Task AfterAsync(TCommand request, TResult result, CancellationToken cancellationToken)
     {
-        if (!unitOfWork.HasActiveTransaction || !result.IsSuccess)
+        if (!result.IsSuccess)
         {
             return Task.CompletedTask;
         }

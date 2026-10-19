@@ -7,12 +7,12 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 
 public sealed class SaveChangesBehaviorTests
 {
-    [Theory(DisplayName = "SaveChangesBehavior saves only successful commands in an active transaction")]
+    [Theory(DisplayName = "SaveChangesBehavior saves successful commands regardless of an active transaction")]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task AfterAsync_SavesOnlySuccessfulTransactionalCommands(bool active, bool success)
+    public async Task AfterAsync_SavesOnlySuccessfulCommands(bool active, bool success)
     {
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = active };
         var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
@@ -21,19 +21,24 @@ public sealed class SaveChangesBehaviorTests
 
         await behavior.AfterAsync(new TestCommand(), result, cancellation.Token);
 
-        unitOfWork.SaveChangesCalls.ShouldBe(active && success ? 1 : 0);
+        unitOfWork.SaveChangesCalls.ShouldBe(success ? 1 : 0);
+        unitOfWork.BeginTransactionCalls.ShouldBe(0);
         unitOfWork.CommitTransactionCalls.ShouldBe(0);
-        if (active && success)
+        unitOfWork.HasActiveTransaction.ShouldBe(active);
+        if (success)
         {
             unitOfWork.LastCancellationToken.ShouldBe(cancellation.Token);
         }
     }
 
     [Theory(DisplayName = "SaveChangesBehavior preserves save failures and cancellation for the request pipeline")]
-    [InlineData("save")]
-    [InlineData("concurrency")]
-    [InlineData("canceled")]
-    public async Task AfterAsync_PropagatesOriginalFailure(string failure)
+    [InlineData(false, "save")]
+    [InlineData(true, "save")]
+    [InlineData(false, "concurrency")]
+    [InlineData(true, "concurrency")]
+    [InlineData(false, "canceled")]
+    [InlineData(true, "canceled")]
+    public async Task AfterAsync_PropagatesOriginalFailure(bool active, string failure)
     {
         Exception expected = failure switch
         {
@@ -41,7 +46,7 @@ public sealed class SaveChangesBehaviorTests
             "canceled" => new OperationCanceledException(),
             _ => new InvalidOperationException("Save failed.")
         };
-        var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true, SaveException = expected };
+        var unitOfWork = new TestUnitOfWork { HasActiveTransaction = active, SaveException = expected };
         var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
 
         var actual = await Record.ExceptionAsync(() => behavior.AfterAsync(
