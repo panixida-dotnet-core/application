@@ -38,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.*" />
 </ItemGroup>
 ```
 
@@ -276,6 +276,7 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
 - `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
+- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result, with or without an active transaction.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
@@ -292,10 +293,13 @@ before:  ValidationBehavior
 before:  BeginTransactionBehavior
 handler: ICommandHandler<TCommand, TResult>
 after:   PublishDomainEventsBehavior
+after:   SaveChangesBehavior
 after:   CommitTransactionBehavior
 finally: CleanupTransactionBehavior
 finally: ConcurrencyExceptionBehavior
 ```
+
+For external delivery, this order requires an outbox-backed `IEventBus`: queue events before saving, persist them atomically with business changes, and deliver them only after commit.
 
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
@@ -502,7 +506,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Persistence
 
-- `IUnitOfWork` defines persistence and transaction operations.
+- `IUnitOfWork` defines persistence and transaction operations. `SaveChangesAsync` saves pending changes without committing the transaction.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
 - `ConcurrencyException` reports an optimistic concurrency conflict independently of a database provider.
 - Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
