@@ -14,16 +14,13 @@ public sealed class SaveChangesBehaviorTests
     [InlineData(true, true)]
     public async Task AfterAsync_SavesOnlySuccessfulTransactionalCommands(bool active, bool success)
     {
-        // Arrange
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = active };
         var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
         var result = success ? Result.Success() : Result.Failure(Error.Validation("Rejected."));
         using var cancellation = new CancellationTokenSource();
 
-        // Act
         await behavior.AfterAsync(new TestCommand(), result, cancellation.Token);
 
-        // Assert
         unitOfWork.SaveChangesCalls.ShouldBe(active && success ? 1 : 0);
         unitOfWork.CommitTransactionCalls.ShouldBe(0);
         if (active && success)
@@ -38,7 +35,6 @@ public sealed class SaveChangesBehaviorTests
     [InlineData("canceled")]
     public async Task AfterAsync_PropagatesOriginalFailure(string failure)
     {
-        // Arrange
         Exception expected = failure switch
         {
             "concurrency" => new ConcurrencyException(),
@@ -48,11 +44,9 @@ public sealed class SaveChangesBehaviorTests
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true, SaveException = expected };
         var behavior = new SaveChangesBehavior<TestCommand, Result>(unitOfWork);
 
-        // Act
         var actual = await Record.ExceptionAsync(() => behavior.AfterAsync(
             new TestCommand(), Result.Success(), TestContext.Current.CancellationToken));
 
-        // Assert
         actual.ShouldBeSameAs(expected);
         unitOfWork.SaveChangesCalls.ShouldBe(1);
         unitOfWork.CommitTransactionCalls.ShouldBe(0);

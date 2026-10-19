@@ -38,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.*" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.*" />
 </ItemGroup>
 ```
 
@@ -276,7 +276,7 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
 - `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
-- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result within an active transaction. It runs after domain event collection and before commit; save failures and cancellation propagate to the existing cleanup and concurrency behaviors.
+- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result within an active transaction.
 - `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
 - `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
@@ -504,11 +504,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Persistence
 
-- `IUnitOfWork` defines persistence and transaction operations. `SaveChangesAsync(CancellationToken)` persists pending changes without committing an active transaction; `CommitTransactionAsync` only commits it.
-
-Version 6 adds the required `IUnitOfWork.SaveChangesAsync` method. Update custom unit-of-work implementations and include `SaveChangesBehavior<,>` after `PublishDomainEventsBehavior<,>` and before `CommitTransactionBehavior<,>` in custom pipelines. Deferred repositories register writes synchronously; reads remain asynchronous. For successful commands without an active transaction, save explicitly because the built-in save behavior follows the transaction boundary.
-
-When domain events are sent outside the process, use an outbox persisted in the same transaction as the business changes and release messages only after commit. Collect deletion events before saving, while deleted roots are still available to the persistence adapter's aggregate tracker.
+- `IUnitOfWork` defines persistence and transaction operations. `SaveChangesAsync` saves pending changes without committing the transaction.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
 - `ConcurrencyException` reports an optimistic concurrency conflict independently of a database provider.
 - Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
