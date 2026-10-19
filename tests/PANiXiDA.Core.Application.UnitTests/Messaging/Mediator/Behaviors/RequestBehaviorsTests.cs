@@ -11,6 +11,7 @@ public sealed class RequestBehaviorsTests
     [Theory(DisplayName = "Command behaviors reject queries")]
     [InlineData(typeof(BeginTransactionBehavior<,,>))]
     [InlineData(typeof(PublishDomainEventsBehavior<,>))]
+    [InlineData(typeof(SaveChangesBehavior<,>))]
     [InlineData(typeof(CommitTransactionBehavior<,>))]
     [InlineData(typeof(CleanupTransactionBehavior<,>))]
     public void CommandBehaviors_WhenClosedForQuery_RejectQuery(Type behaviorType)
