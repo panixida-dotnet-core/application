@@ -38,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.*" />
 </ItemGroup>
 ```
 
