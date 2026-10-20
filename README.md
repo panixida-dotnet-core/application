@@ -354,14 +354,9 @@ missing permissions, and `Unexpected` for null permission collections or null,
 empty, or whitespace permission names.
 Permission names in failure messages are sorted using `StringComparer.Ordinal`.
 
-`Authentication.ClaimTypes.Permission` is `"permission"`. Roles do not
-implicitly grant permissions. UI modules group permissions without introducing
-separate claim types. Token validation and the `ICurrentUser` implementation
-belong to the transport adapter; resource-specific access rules belong to the application.
-
-`Authentication.ClaimTypes.Section` has been removed. Consumers must use explicit
-permissions for authorization and navigation visibility; migrating existing claim
-assignments is the consuming application's responsibility.
+`Authentication.ClaimTypes.Permission` is `"permission"`. Roles do not implicitly grant
+permissions. Token validation and `ICurrentUser` belong to transport adapters;
+resource-specific access rules belong to the application.
 
 ## Domain Value Validation
 
