@@ -16,13 +16,14 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 - CQRS request contracts: `ICommand<TResult>`, `IQuery<TResult>`, and `IRequest<TResult>`.
 - Mediator contracts for command/query dispatch and handler implementation.
-- Pipeline behavior contracts for before, after, and finally request stages, including before-stage success/failure results.
+- Pipeline behavior contracts for before, after, finally, and exception request stages, including failure-result proposals after successful cleanup.
 - Built-in behaviors for permission-based authorization, FluentValidation request validation, transaction start, commit, cleanup, and domain event publishing.
 - Transport-independent current caller information and handler-level authentication and permission requirements.
 - FluentValidation extensions for converting single-property and complex domain factory `Result<T>` errors into validation failures.
 - Event bus and event handler abstractions for `DomainEvent` integration.
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
+- Provider-independent optimistic concurrency exceptions and a behavior that maps them to conflict results.
 - File storage abstraction for uploading, downloading, and deleting content by caller-supplied keys, including signed URLs for direct transfers.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -37,7 +38,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="6.0.0" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.*" />
 </ItemGroup>
 ```
 
@@ -269,16 +270,18 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 
 ## Request Behaviors
 
-The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, and domain event publication:
+The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling:
 
 - `AuthorizationBehavior<TRequest, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
 - `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
-- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler implementing `IRequireTransaction` runs.
+- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
-- `CommitTransactionBehavior<TCommand, TResult, THandler>` commits the active transaction after a successful command result for a handler implementing `IRequireTransaction`.
-- `CleanupTransactionBehavior<TCommand, TResult, THandler>` rolls back failed command transactions and disposes transaction resources for a handler implementing `IRequireTransaction`.
+- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result, with or without an active transaction.
+- `CommitTransactionBehavior<TCommand, TResult, THandler>` commits the active transaction after a successful command result.
+- `CleanupTransactionBehavior<TCommand, TResult, THandler>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
+- `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
 
-Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
+Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless a configured finally behavior handles it by returning a new failure result. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
 
 Domain event publication and transaction behaviors require `ICommand<TResult>` and do not apply to `IQuery<TResult>` or plain `IRequest<TResult>` implementations. Query pipelines retain request validation and exclude these command-only behaviors. Directly closing `PublishDomainEventsBehavior` for a query or plain request is no longer supported.
 
@@ -287,12 +290,16 @@ A consuming mediator implementation should register these behaviors in a determi
 ```text
 before:  AuthorizationBehavior
 before:  ValidationBehavior
-before:  BeginTransactionBehavior (handlers implementing IRequireTransaction)
+before:  BeginTransactionBehavior
 handler: ICommandHandler<TCommand, TResult>
 after:   PublishDomainEventsBehavior
-after:   CommitTransactionBehavior (handlers implementing IRequireTransaction)
-finally: CleanupTransactionBehavior (handlers implementing IRequireTransaction)
+after:   SaveChangesBehavior
+after:   CommitTransactionBehavior
+finally: CleanupTransactionBehavior
+finally: ConcurrencyExceptionBehavior
 ```
+
+For external delivery, this order requires an outbox-backed `IEventBus`: queue events before saving, persist them atomically with business changes, and deliver them only after commit.
 
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
@@ -300,33 +307,18 @@ When a before behavior returns a failed `Result`, the mediator should stop the p
 
 ### Handler Transactions
 
-Implement `IRequireTransaction` from `PANiXiDA.Core.Application.Persistence` on a
-command handler to require an automatic transaction. Authorization is independent:
-a handler may implement `IRequireAuthorization`, `IRequireTransaction`, both, or neither.
+Implement `IRequireTransaction` from `PANiXiDA.Core.Application.Persistence` on command
+handlers that need automatic transactions. The mediator must bind the actual handler
+as `THandler` for all three transaction behaviors and skip them for unmarked handlers.
+Saving changes, domain event publication, and authorization are independent of this marker.
 
-The consuming mediator must bind the actual handler type as `THandler` for all three
-transaction behaviors and skip them for unmarked handlers. Commit and cleanup still
-implement the two-parameter `IAfterRequestBehavior<TCommand, TResult>` and
-`IFinallyRequestBehavior<TCommand, TResult>` contracts. Their implementation types now
-have three generic parameters. Query and plain request handlers cannot use these
-command-only behaviors, even when they implement the marker.
+### Optimistic Concurrency
 
-Handlers that only upload files or call external services can omit the marker.
-Handlers that manage their own transaction also omit it and use `IUnitOfWork`,
-including `ExecuteInTransactionAsync`, taking responsibility for commit, rollback,
-and disposal. Omitting the marker skips automatic transaction management; it does
-not suppress an existing transaction or transactions created by the persistence provider.
+Persistence adapters report optimistic concurrency conflicts with `ConcurrencyException` from `PANiXiDA.Core.Application.Persistence.Errors`. `ConcurrencyExceptionBehavior<TRequest, TResult>` converts direct conflicts to `Error.Conflict`, preserving existing failed results and leaving other exceptions unhandled.
 
-Domain event publication remains independent of the marker. A mediator using an
-outbox must persist events before committing the transaction and dispatch them after
-commit. A manual commit inside the handler occurs before `PublishDomainEventsBehavior`;
-subsequent event publication is not atomic with that commit. Delivery guarantees and
-outbox persistence without an automatic transaction belong to the infrastructure adapter.
+`FinallyAsync` now returns `Task<Result?>`: behaviors pass the current result through or replace it. Mediator adapters must pass the returned result to the next behavior and accept exception handling only after all cleanup succeeds. Cleanup failures retain the original processing exception.
 
-Version 6 is a breaking change: mark existing command handlers that must retain their
-automatic transactions and update registrations of `CommitTransactionBehavior<,>` and
-`CleanupTransactionBehavior<,>` to the three-parameter implementations. Infrastructure
-adapters must support these handler-aware registrations before upgrading this package.
+Existing finally implementations must adopt the new return type. Provider exception translation and Wolverine integration require separate adapter changes.
 
 ### Handler Authorization
 
@@ -369,10 +361,9 @@ missing permissions, and `Unexpected` for null permission collections or null,
 empty, or whitespace permission names.
 Permission names in failure messages are sorted using `StringComparer.Ordinal`.
 
-`Authentication.ClaimTypes.Permission` is `"permission"` and
-`Authentication.ClaimTypes.Section` is `"section"`. Roles and UI sections do not
-implicitly grant permissions. Token validation and the `ICurrentUser` implementation
-belong to the transport adapter; resource-specific access rules belong to the application.
+`Authentication.ClaimTypes.Permission` is `"permission"`. Roles do not implicitly grant
+permissions. Token validation and `ICurrentUser` belong to transport adapters;
+resource-specific access rules belong to the application.
 
 ## Domain Value Validation
 
@@ -505,7 +496,8 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IReadModel` identifies query and read repository result payloads.
 - `IBeforeRequestBehavior<TRequest, TResult, THandler>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterRequestBehavior<TRequest, TResult>` runs after a handler returns a result and is defined in the mediator behavior abstractions namespace.
-- `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and is defined in the mediator behavior abstractions namespace.
+- `IFinallyRequestBehavior<TRequest, TResult>` runs after request processing completes or fails and returns the current result or a replacement for the next finally behavior.
+- `ConcurrencyExceptionBehavior<TRequest, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.
 
 ### Validation
 
@@ -521,8 +513,9 @@ The aggregate repository contract is intentionally not defined by this package; 
 ### Persistence
 
 - `IRequireTransaction` declares automatic transaction requirements on command handlers.
-- `IUnitOfWork` defines persistence and transaction operations.
+- `IUnitOfWork` defines persistence and transaction operations. `SaveChangesAsync` saves pending changes without committing the transaction.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
+- `ConcurrencyException` reports an optimistic concurrency conflict independently of a database provider.
 - Aggregate persistence uses `IRepository<TId, TAggregateRoot>` from `PANiXiDA.Core.Domain`.
 
 ### Querying Models

@@ -12,6 +12,7 @@ internal sealed class TestUnitOfWork : IUnitOfWork
     public int DisposeTransactionCalls { get; private set; }
     public CancellationToken LastCancellationToken { get; private set; }
     public bool HasActiveTransaction { get; set; }
+    public Exception? SaveException { get; init; }
     public Exception? RollbackException { get; init; }
     public Exception? DisposeException { get; init; }
 
@@ -19,6 +20,11 @@ internal sealed class TestUnitOfWork : IUnitOfWork
     {
         SaveChangesCalls++;
         LastCancellationToken = cancellationToken;
+
+        if (SaveException is not null)
+        {
+            return Task.FromException(SaveException);
+        }
 
         return Task.CompletedTask;
     }
