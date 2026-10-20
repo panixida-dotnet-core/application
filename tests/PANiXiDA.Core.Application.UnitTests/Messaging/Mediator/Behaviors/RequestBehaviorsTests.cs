@@ -1,6 +1,7 @@
 using FluentValidation;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 
@@ -8,12 +9,26 @@ namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
 
 public sealed class RequestBehaviorsTests
 {
+    [Theory(DisplayName = "Transaction behaviors require a matching handler that declares transactions")]
+    [InlineData(typeof(BeginTransactionBehavior<,,>), typeof(UnmarkedHandler))]
+    [InlineData(typeof(CommitTransactionBehavior<,,>), typeof(UnmarkedHandler))]
+    [InlineData(typeof(CleanupTransactionBehavior<,,>), typeof(UnmarkedHandler))]
+    [InlineData(typeof(BeginTransactionBehavior<,,>), typeof(TestRequestHandler<TestRequest, Result>))]
+    [InlineData(typeof(CommitTransactionBehavior<,,>), typeof(TestRequestHandler<TestRequest, Result>))]
+    [InlineData(typeof(CleanupTransactionBehavior<,,>), typeof(TestRequestHandler<TestRequest, Result>))]
+    public void TransactionBehaviors_WhenHandlerDoesNotMatch_RejectHandler(Type behaviorType, Type handlerType)
+    {
+        void act() => behaviorType.MakeGenericType(typeof(TestCommand), typeof(Result), handlerType);
+
+        Should.Throw<ArgumentException>(act);
+    }
+
     [Theory(DisplayName = "Command behaviors reject queries")]
     [InlineData(typeof(BeginTransactionBehavior<,,>))]
     [InlineData(typeof(PublishDomainEventsBehavior<,>))]
     [InlineData(typeof(SaveChangesBehavior<,>))]
-    [InlineData(typeof(CommitTransactionBehavior<,>))]
-    [InlineData(typeof(CleanupTransactionBehavior<,>))]
+    [InlineData(typeof(CommitTransactionBehavior<,,>))]
+    [InlineData(typeof(CleanupTransactionBehavior<,,>))]
     public void CommandBehaviors_WhenClosedForQuery_RejectQuery(Type behaviorType)
     {
         var queryType = typeof(TestValidatedQuery);
@@ -109,7 +124,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CommitTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CommitTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
@@ -120,7 +135,7 @@ public sealed class RequestBehaviorsTests
     public async Task AfterAsync_WhenTransactionIsNotActive_DoesNotCommitTransaction()
     {
         var unitOfWork = new TestUnitOfWork();
-        var behavior = new CommitTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CommitTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
 
@@ -134,7 +149,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CommitTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CommitTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         await behavior.AfterAsync(new TestCommand(), CreateFailureResult(), CancellationToken.None);
 
@@ -145,7 +160,7 @@ public sealed class RequestBehaviorsTests
     public async Task FinallyAsync_WhenTransactionIsNotActive_DoesNotRollbackOrDispose()
     {
         var unitOfWork = new TestUnitOfWork();
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var originalResult = Result.Success();
 
         var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
@@ -162,7 +177,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var originalResult = Result.Success();
 
         var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
@@ -179,7 +194,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var originalResult = CreateFailureResult();
 
         var result = await behavior.FinallyAsync(new TestCommand(), originalResult, null, CancellationToken.None);
@@ -196,7 +211,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var result = await behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None);
 
@@ -212,7 +227,7 @@ public sealed class RequestBehaviorsTests
         {
             HasActiveTransaction = true
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var originalResult = Result.Success();
 
         var result = await behavior.FinallyAsync(
@@ -294,6 +309,14 @@ public sealed class RequestBehaviorsTests
     private static Result CreateFailureResult()
     {
         return Result.Failure(Error.Failure("Failure."));
+    }
+
+    private sealed class UnmarkedHandler : ICommandHandler<TestCommand, Result>
+    {
+        public Task<Result> HandleAsync(TestCommand request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success());
+        }
     }
 
     private sealed record TestValidatedCommand(string Name) : ICommand<Result>;

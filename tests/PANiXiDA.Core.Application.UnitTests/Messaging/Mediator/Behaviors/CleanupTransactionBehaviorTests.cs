@@ -15,7 +15,7 @@ public sealed class CleanupTransactionBehaviorTests
     public async Task FinallyAsync_WhenGenericResultExists_ReturnsOriginalResult(bool hasActiveTransaction, bool isFailure)
     {
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = hasActiveTransaction };
-        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>, TestRequestHandler<ValueCommand, Result<string>>>(unitOfWork);
         var originalResult = isFailure ? Result.Failure<string>(Error.Validation("Invalid value.")) : Result.Success("saved value");
 
         var result = await behavior.FinallyAsync(new ValueCommand(), originalResult, null, TestContext.Current.CancellationToken);
@@ -29,7 +29,7 @@ public sealed class CleanupTransactionBehaviorTests
     public async Task FinallyAsync_WhenResultAndTransactionAreMissing_ReturnsNull()
     {
         var unitOfWork = new TestUnitOfWork();
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var result = await behavior.FinallyAsync(new TestCommand(), null, null, TestContext.Current.CancellationToken);
 
@@ -44,7 +44,7 @@ public sealed class CleanupTransactionBehaviorTests
     public async Task FinallyAsync_WhenGenericResultIsMissing_ReturnsNull(bool hasActiveTransaction)
     {
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = hasActiveTransaction };
-        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<ValueCommand, Result<string>, TestRequestHandler<ValueCommand, Result<string>>>(unitOfWork);
 
         var result = await behavior.FinallyAsync(new ValueCommand(), null, null, TestContext.Current.CancellationToken);
 
@@ -74,7 +74,7 @@ public sealed class CleanupTransactionBehaviorTests
             RollbackException = failRollback ? new InvalidOperationException("Rollback failed.") : null,
             DisposeException = failDispose ? new InvalidOperationException("Dispose failed.") : null
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var expectedExceptions = new[] { originalException, unitOfWork.RollbackException, unitOfWork.DisposeException }
             .OfType<Exception>().ToArray();
 
@@ -148,7 +148,7 @@ public sealed class CleanupTransactionBehaviorTests
             RollbackException = cancelDispose ? null : exception,
             DisposeException = cancelDispose ? exception : null
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var task = behavior.FinallyAsync(new TestCommand(), null, null, cancellation.Token);
         var actualException = await Record.ExceptionAsync(() => task);
@@ -171,7 +171,7 @@ public sealed class CleanupTransactionBehaviorTests
             HasActiveTransaction = true,
             RollbackException = rollbackException
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var task = behavior.FinallyAsync(new TestCommand(), null, originalException, cancellation.Token);
         var actualException = await Record.ExceptionAsync(() => task);
@@ -193,7 +193,7 @@ public sealed class CleanupTransactionBehaviorTests
             HasActiveTransaction = true,
             RollbackException = rollbackException
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), null, null, CancellationToken.None));
@@ -214,7 +214,7 @@ public sealed class CleanupTransactionBehaviorTests
             HasActiveTransaction = true,
             RollbackException = cleanupException
         };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), null, originalException, CancellationToken.None));
@@ -230,7 +230,7 @@ public sealed class CleanupTransactionBehaviorTests
     {
         var exception = new InvalidOperationException("Dispose failed.");
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true, DisposeException = exception };
-        var behavior = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var behavior = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
 
         var actualException = await Record.ExceptionAsync(
             () => behavior.FinallyAsync(new TestCommand(), Result.Success(), null, CancellationToken.None));

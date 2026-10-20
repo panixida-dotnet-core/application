@@ -277,8 +277,8 @@ The package includes reusable mediator behavior implementations for authorizatio
 - `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TCommand, TResult>` publishes domain events collected from tracked aggregate roots after a successful command result and clears tracked events after a failed result or completed successful publication.
 - `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result, with or without an active transaction.
-- `CommitTransactionBehavior<TCommand, TResult>` commits the active transaction after a successful command result.
-- `CleanupTransactionBehavior<TCommand, TResult>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
+- `CommitTransactionBehavior<TCommand, TResult, THandler>` commits the active transaction after a successful command result.
+- `CleanupTransactionBehavior<TCommand, TResult, THandler>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
 
 Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless a configured finally behavior handles it by returning a new failure result. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
@@ -304,6 +304,13 @@ For external delivery, this order requires an outbox-backed `IEventBus`: queue e
 The exact registration mechanism depends on the mediator or composition root used by the consuming application.
 A consuming mediator should continue to the handler when a before behavior returns `Result.Success()`.
 When a before behavior returns a failed `Result`, the mediator should stop the pipeline and return a failed request `TResult` with the same errors.
+
+### Handler Transactions
+
+Implement `IRequireTransaction` from `PANiXiDA.Core.Application.Persistence` on command
+handlers that need automatic transactions. The mediator must bind the actual handler
+as `THandler` for all three transaction behaviors and skip them for unmarked handlers.
+Saving changes, domain event publication, and authorization are independent of this marker.
 
 ### Optimistic Concurrency
 
@@ -505,6 +512,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 
 ### Persistence
 
+- `IRequireTransaction` declares automatic transaction requirements on command handlers.
 - `IUnitOfWork` defines persistence and transaction operations. `SaveChangesAsync` saves pending changes without committing the transaction.
 - `IReadRepository<TId>` defines read-only `ExistsByIdAsync` and `AnyAsync` checks.
 - `ConcurrencyException` reports an optimistic concurrency conflict independently of a database provider.

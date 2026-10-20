@@ -146,7 +146,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
     public async Task FinallyAsync_WhenTransactionCleanupSucceeds_ReturnsConflict()
     {
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true };
-        var cleanup = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var cleanup = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
         var request = new TestCommand();
         var exception = new ConcurrencyException();
@@ -163,7 +163,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
     public async Task FinallyAsync_WhenConcurrencyIsHandledBeforeCleanup_PreservesConflict()
     {
         var unitOfWork = new TestUnitOfWork { HasActiveTransaction = true };
-        var cleanup = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var cleanup = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
         var request = new TestCommand();
         var exception = new ConcurrencyException();
@@ -189,7 +189,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
             RollbackException = failRollback ? new InvalidOperationException("Rollback failed.") : null,
             DisposeException = failDispose ? new InvalidOperationException("Dispose failed.") : null
         };
-        var cleanup = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var cleanup = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
         var request = new TestCommand();
         var originalException = new ConcurrencyException();
@@ -219,7 +219,7 @@ public sealed class ConcurrencyExceptionBehaviorTests
             RollbackException = failRollback ? new InvalidOperationException("Rollback failed.") : null,
             DisposeException = failDispose ? new InvalidOperationException("Dispose failed.") : null
         };
-        var cleanup = new CleanupTransactionBehavior<TestCommand, Result>(unitOfWork);
+        var cleanup = new CleanupTransactionBehavior<TestCommand, Result, TestRequestHandler<TestCommand, Result>>(unitOfWork);
         var behavior = new ConcurrencyExceptionBehavior<TestCommand, Result>();
         var request = new TestCommand();
         var originalException = new ConcurrencyException();
