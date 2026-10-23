@@ -365,6 +365,15 @@ Permission names in failure messages are sorted using `StringComparer.Ordinal`.
 permissions. Token validation and `ICurrentUser` belong to transport adapters;
 resource-specific access rules belong to the application.
 
+`ICurrentUser.AccessToken` exposes the token used for successful authentication of
+the current request, or `null` when no access token is available. Transport adapters
+supply this value; Application does not extract or validate tokens. Unauthenticated
+callers and background operations without a current caller return `null`.
+
+Version 5.2 adds this required interface member. Existing `ICurrentUser`
+implementations must implement `AccessToken`; adapters without access tokens can
+return `null`. HTTP adapter support is provided separately.
+
 ## Domain Value Validation
 
 `MustBeValidDomainValue` adds a FluentValidation rule that calls a domain value factory returning `Result<T>`.

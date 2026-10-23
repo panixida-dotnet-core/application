@@ -23,6 +23,12 @@ public interface ICurrentUser
     string? UserName { get; }
 
     /// <summary>
+    /// Gets the access token used to authenticate the current request,
+    /// or null when no access token is available.
+    /// </summary>
+    string? AccessToken { get; }
+
+    /// <summary>
     /// Gets the current user's role names, or an empty collection when no roles are available.
     /// </summary>
     IReadOnlyCollection<string> Roles { get; }

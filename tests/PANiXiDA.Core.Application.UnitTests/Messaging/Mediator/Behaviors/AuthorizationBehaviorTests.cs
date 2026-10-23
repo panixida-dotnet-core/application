@@ -343,6 +343,8 @@ public sealed class AuthorizationBehaviorTests
 
         public string? UserName => null;
 
+        public string? AccessToken => null;
+
         public IReadOnlyCollection<string> Roles { get; init; } = [];
 
         public List<string> CheckedPermissions { get; } = [];
