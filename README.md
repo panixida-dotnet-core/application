@@ -455,13 +455,23 @@ file operations using string keys and cancellation tokens:
 - `UploadAsync` uploads a stream with a content type, reads from its current position,
   and leaves it open. Uploads to an existing key replace its content.
 - `DownloadAsync` returns a stream the caller must dispose; missing files raise `FileNotFoundException`.
+- `GetMetadataAsync` reads the stored content type and size without downloading content.
+  It returns `FileMetadata` or `null` if the file does not exist. Access failures, an unavailable
+  storage location, and other provider errors propagate; cancellation is honored.
 - `DeleteAsync` deletes a file and succeeds if it is already absent.
 - `GetPresignedUploadUrlAsync` accepts a key, content type, and size and returns a signed `PUT` URL.
 - `GetPresignedDownloadUrlAsync` accepts a key, file name, and content type and returns a signed `GET` URL.
 
-Results in `Storage.Models` are `PresignedUploadUrl` (`Url`, `ExpiresAt`, `RequiredHeaders`)
-and `PresignedDownloadUrl` (`Url`, `ExpiresAt`). Use URLs unchanged and send required
-upload headers with the declared content type and size.
+Results in `Storage.Models` include `FileMetadata` (`ContentType`, `Size`),
+`PresignedUploadUrl` (`Url`, `ExpiresAt`, `RequiredHeaders`), and `PresignedDownloadUrl`
+(`Url`, `ExpiresAt`). Metadata size is a `long` measured in bytes, including zero for
+empty files. Stored metadata still requires application-level validation. Use signed
+URLs unchanged and send required upload headers with the declared content type and size.
+
+Version 6.0 adds `GetMetadataAsync` as a required interface member. Storage adapters
+implementing earlier versions of `IFileStorage` must implement this method and be
+rebuilt before consumers upgrade. Map missing objects to `null` and preserve other
+storage failures; do not download content to obtain metadata.
 
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.
