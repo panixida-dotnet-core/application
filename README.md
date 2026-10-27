@@ -468,7 +468,7 @@ Results in `Storage.Models` include `FileMetadata` (`ContentType`, `Size`),
 empty files. Stored metadata still requires application-level validation. Use signed
 URLs unchanged and send required upload headers with the declared content type and size.
 
-Version 6.0 adds `GetMetadataAsync` as a required interface member. Storage adapters
+Version 5.3 adds `GetMetadataAsync` as a required interface member. Storage adapters
 implementing earlier versions of `IFileStorage` must implement this method and be
 rebuilt before consumers upgrade. Map missing objects to `null` and preserve other
 storage failures; do not download content to obtain metadata.
