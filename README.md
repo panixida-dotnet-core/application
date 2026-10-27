@@ -468,11 +468,6 @@ Results in `Storage.Models` include `FileMetadata` (`ContentType`, `Size`),
 empty files. Stored metadata still requires application-level validation. Use signed
 URLs unchanged and send required upload headers with the declared content type and size.
 
-Version 5.3 adds `GetMetadataAsync` as a required interface member. Storage adapters
-implementing earlier versions of `IFileStorage` must implement this method and be
-rebuilt before consumers upgrade. Map missing objects to `null` and preserve other
-storage failures; do not download content to obtain metadata.
-
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.
 This package defines contracts only; generating a URL does not verify or transfer content.
