@@ -24,6 +24,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 - A shared scheduler contract with typed command and domain event overloads for delayed delivery or delivery at a specified time.
 - Unit of work, read repository, and aggregate tracker abstractions for application persistence boundaries.
 - Provider-independent optimistic concurrency exceptions and a behavior that maps them to conflict results.
+- Logging abstractions for application handlers through `Microsoft.Extensions.Logging.Abstractions`.
 - File storage abstraction for uploading, downloading, and deleting content by caller-supplied keys, including signed URLs for direct transfers.
 - `IReadModel` marker interface for immutable read-side result models.
 - Read-side helper models for page-based pagination, cursor pagination, multi-field sorting, filtering, and validated result limits.
@@ -38,27 +39,34 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.1.*" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="5.4.*" />
 </ItemGroup>
 ```
 
 ## Basic Usage
 
+`Microsoft.Extensions.Logging.Abstractions` is a transitive dependency, so application
+handlers can use `ILogger<T>` without a separate package reference. Configure logging
+providers in the host application.
+
 ### Command Contract
 
 ```csharp
+using Microsoft.Extensions.Logging;
+
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.ResultPattern;
 
 public sealed record PingCommand : ICommand<Result>;
 
-public sealed class PingCommandHandler : ICommandHandler<PingCommand, Result>
+public sealed class PingCommandHandler(ILogger<PingCommandHandler> logger) : ICommandHandler<PingCommand, Result>
 {
     public Task<Result> HandleAsync(
         PingCommand command,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation("Handling ping command");
         return Task.FromResult(Result.Success());
     }
 }
