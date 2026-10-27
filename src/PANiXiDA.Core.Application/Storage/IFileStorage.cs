@@ -38,6 +38,23 @@ public interface IFileStorage
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Reads the stored file's metadata without downloading its content.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="cancellationToken">The token used to cancel the metadata request.</param>
+    /// <returns>The stored content type and size in bytes, or null if the file does not exist.</returns>
+    /// <exception cref="ArgumentException">The key is null, empty, whitespace, or invalid for the provider.</exception>
+    /// <exception cref="OperationCanceledException">The cancellation token is canceled.</exception>
+    /// <remarks>
+    /// Only an absent file produces a null result. Authorization failures, an unavailable storage location,
+    /// and other storage errors must propagate to the caller.
+    /// Metadata describes the stored object; it does not verify its content against application expectations.
+    /// </remarks>
+    Task<FileMetadata?> GetMetadataAsync(
+        string key,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Deletes the file at the specified key, succeeding if the file does not exist.
     /// </summary>
     /// <param name="key">The file key within the configured storage location.</param>
