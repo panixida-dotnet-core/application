@@ -9,6 +9,7 @@ public static class DomainValidationRuleBuilderExtensions
 {
     /// <summary>
     /// Adds a FluentValidation custom rule that treats failed domain factory results as validation failures.
+    /// Failures use the current property path, including parent properties and collection indexes.
     /// </summary>
     /// <typeparam name="TRequest">The request type being validated.</typeparam>
     /// <typeparam name="TProperty">The property type being validated.</typeparam>
@@ -33,7 +34,7 @@ public static class DomainValidationRuleBuilderExtensions
 
             foreach (Error error in result.Errors)
             {
-                context.AddFailure(context.PropertyPath, error.Message);
+                context.AddFailure(error.Message);
             }
         });
     }

@@ -55,6 +55,87 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
         result.Errors.Select(failure => failure.ErrorMessage).ShouldBe(["Value is required.", "Value is too short."]);
     }
 
+    [Theory(DisplayName = "MustBeValidDomainValue preserves nested paths when a child validator is used")]
+    [InlineData("", 2)]
+    [InlineData("valid", 0)]
+    public void MustBeValidDomainValue_WhenChildValidatorIsUsed_PreservesNestedPaths(string value, int errorCount)
+    {
+        var validator = new InlineValidator<NestedTestRequest>();
+        validator.RuleFor(request => request.Filter).SetValidator(new TestRequestValidator());
+
+        var result = validator.Validate(new NestedTestRequest(new TestRequest(value)));
+
+        result.Errors.Count.ShouldBe(errorCount);
+        result.Errors.ShouldAllBe(failure => failure.PropertyName == "Filter.Value");
+        if (errorCount > 0)
+        {
+            result.Errors.Select(failure => failure.ErrorMessage)
+                .ShouldBe(["Value is required.", "Value is too short."]);
+        }
+    }
+
+    [Fact(DisplayName = "MustBeValidDomainValue preserves indexed paths when collection elements use a validator")]
+    public void MustBeValidDomainValue_WhenCollectionElementsUseValidator_PreservesIndexedPaths()
+    {
+        var validator = new InlineValidator<CollectionTestRequest>();
+        validator.RuleForEach(request => request.Items).SetValidator(new TestRequestValidator());
+        var request = new CollectionTestRequest([new TestRequest("valid"), new TestRequest("")]);
+
+        var result = validator.Validate(request);
+
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Items[1].Value", "Items[1].Value"]);
+        result.Errors.Select(failure => failure.ErrorMessage).ShouldBe(["Value is required.", "Value is too short."]);
+    }
+
+    [Fact(DisplayName = "MustBeValidDomainValue preserves indexed paths when collection elements use child rules")]
+    public void MustBeValidDomainValue_WhenCollectionElementsUseChildRules_PreservesIndexedPaths()
+    {
+        var validator = new InlineValidator<CollectionTestRequest>();
+        validator.RuleForEach(request => request.Items).ChildRules(item =>
+            item.RuleFor(request => request.Value).MustBeValidDomainValue(TestDomainValue.Create));
+        var request = new CollectionTestRequest([new TestRequest("valid"), new TestRequest("")]);
+
+        var result = validator.Validate(request);
+
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Items[1].Value", "Items[1].Value"]);
+        result.Errors.Select(failure => failure.ErrorMessage).ShouldBe(["Value is required.", "Value is too short."]);
+    }
+
+    [Theory(DisplayName = "MustBeValidDomainValue preserves overridden names when a property name is overridden")]
+    [InlineData(false, "Alias")]
+    [InlineData(true, "Filter.Alias")]
+    public void MustBeValidDomainValue_WhenPropertyNameIsOverridden_PreservesOverriddenNames(
+        bool nested,
+        string expectedPath)
+    {
+        var childValidator = new InlineValidator<TestRequest>();
+        childValidator.RuleFor(request => request.Value)
+            .NotNull()
+            .OverridePropertyName("Alias")
+            .MustBeValidDomainValue(TestDomainValue.Create);
+        var parentValidator = new InlineValidator<NestedTestRequest>();
+        parentValidator.RuleFor(request => request.Filter).SetValidator(childValidator);
+
+        var result = nested
+            ? parentValidator.Validate(new NestedTestRequest(new TestRequest("")))
+            : childValidator.Validate(new TestRequest(""));
+
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe([expectedPath, expectedPath]);
+        result.Errors.Select(failure => failure.ErrorMessage).ShouldBe(["Value is required.", "Value is too short."]);
+    }
+
+    [Fact(DisplayName = "MustBeValidDomainValue preserves direct paths when a rule targets a nested property")]
+    public void MustBeValidDomainValue_WhenRuleTargetsNestedProperty_PreservesDirectPaths()
+    {
+        var validator = new InlineValidator<NestedTestRequest>();
+        validator.RuleFor(request => request.Filter.Value).MustBeValidDomainValue(TestDomainValue.Create);
+
+        var result = validator.Validate(new NestedTestRequest(new TestRequest("")));
+
+        result.Errors.Select(failure => failure.PropertyName).ShouldBe(["Filter.Value", "Filter.Value"]);
+        result.Errors.Select(failure => failure.ErrorMessage).ShouldBe(["Value is required.", "Value is too short."]);
+    }
+
     [Fact(DisplayName = "MustBeValidDomainResult throws when rule builder is null")]
     public void MustBeValidDomainResult_WhenRuleBuilderIsNull_Throws()
     {
@@ -126,6 +207,10 @@ public sealed class DomainValidationRuleBuilderExtensionsTests
     }
 
     private sealed record TestRequest(string Value);
+
+    private sealed record NestedTestRequest(TestRequest Filter);
+
+    private sealed record CollectionTestRequest(TestRequest[] Items);
 
     private sealed record ComplexTestRequest(
         string FirstValue,
