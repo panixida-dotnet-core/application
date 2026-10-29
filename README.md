@@ -377,6 +377,8 @@ resource-specific access rules belong to the application.
 
 `MustBeValidDomainValue` adds a FluentValidation rule that calls a domain value factory returning `Result<T>`.
 When the factory fails, each result error message is added as a validation failure for the current property.
+Nested validators and collection rules preserve the full property path, such as `Filter.Type` or `Items[0].Type`,
+including names set with `OverridePropertyName`.
 
 ```csharp
 using FluentValidation;
