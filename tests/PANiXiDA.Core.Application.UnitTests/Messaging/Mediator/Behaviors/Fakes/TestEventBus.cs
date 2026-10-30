@@ -7,10 +7,13 @@ internal sealed class TestEventBus : IEventBus
 {
     public List<DomainEvent> PublishedEvents { get; } = [];
     public Exception? Exception { get; init; }
+    public CancellationToken LastCancellationToken { get; private set; }
 
     public Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken)
         where TEvent : DomainEvent
     {
+        LastCancellationToken = cancellationToken;
+
         if (Exception is not null)
         {
             throw Exception;
