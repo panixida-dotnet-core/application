@@ -37,7 +37,7 @@ public sealed class MessageBehaviorContractsTests
     [Fact(DisplayName = "Before message contracts reject types without a message contract")]
     public void BeforeContract_WhenMessageContractIsMissing_RejectsType()
     {
-        void act() => typeof(IBeforeMessageBehavior<>).MakeGenericType(typeof(string));
+        static void act() => typeof(IBeforeMessageBehavior<>).MakeGenericType(typeof(string));
 
         Should.Throw<ArgumentException>(act);
     }
