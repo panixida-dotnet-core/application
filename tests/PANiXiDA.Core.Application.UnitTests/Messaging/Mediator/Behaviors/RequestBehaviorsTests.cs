@@ -25,7 +25,6 @@ public sealed class RequestBehaviorsTests
 
     [Theory(DisplayName = "Command behaviors reject queries")]
     [InlineData(typeof(BeginTransactionBehavior<,,>))]
-    [InlineData(typeof(PublishDomainEventsBehavior<,>))]
     [InlineData(typeof(SaveChangesBehavior<,>))]
     [InlineData(typeof(CommitTransactionBehavior<,,>))]
     [InlineData(typeof(CleanupTransactionBehavior<,,>))]
@@ -37,16 +36,6 @@ public sealed class RequestBehaviorsTests
         void act() => behaviorType.MakeGenericType(behaviorType.GetGenericArguments().Length == 3
             ? [queryType, resultType, typeof(TestRequestHandler<TestValidatedQuery, Result<string>>)]
             : [queryType, resultType]);
-
-        Should.Throw<ArgumentException>(act);
-    }
-
-    [Fact(DisplayName = "PublishDomainEventsBehavior rejects requests without a command contract")]
-    public void PublishDomainEventsBehavior_WhenClosedForPlainRequest_RejectsRequest()
-    {
-        var behaviorType = typeof(PublishDomainEventsBehavior<,>);
-
-        void act() => behaviorType.MakeGenericType(typeof(TestRequest), typeof(Result));
 
         Should.Throw<ArgumentException>(act);
     }

@@ -6,57 +6,18 @@ using PANiXiDA.Core.Application.Persistence;
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 
 /// <summary>
-/// Publishes domain events collected from tracked aggregate roots after a successful command result.
+/// Publishes tracked aggregate events after successful commands and event handlers, excluding queries.
 /// </summary>
-/// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type returned by the command.</typeparam>
-/// <param name="eventBus">The event bus used to publish domain events.</param>
-/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the command.</param>
-public sealed class PublishDomainEventsBehavior<TCommand, TResult>(
-    IEventBus eventBus,
-    IAggregateTracker aggregateTracker) : IAfterRequestBehavior<TCommand, TResult>
-    where TCommand : ICommand<TResult>
+/// <typeparam name="TMessage">The command or domain event processed by the handler.</typeparam>
+/// <typeparam name="TResult">The command result type, or Result for a completed event handler.</typeparam>
+public sealed class PublishDomainEventsBehavior<TMessage, TResult> : IAfterRequestBehavior<TMessage, TResult>
     where TResult : Result
-{
-    private readonly PublishDomainEventsBehavior publication = new(eventBus, aggregateTracker);
-
-    /// <summary>
-    /// Publishes domain events when the command succeeded and clears tracked events after completed publication.
-    /// </summary>
-    /// <param name="request">The command that was processed.</param>
-    /// <param name="result">The command execution result.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    public Task AfterAsync(
-        TCommand request,
-        TResult result,
-        CancellationToken cancellationToken)
-    {
-        if (result.IsFailure)
-        {
-            publication.Clear();
-            return Task.CompletedTask;
-        }
-
-        return publication.AfterAsync(cancellationToken);
-    }
-
-}
-
-/// <summary>
-/// Publishes tracked aggregate events after a handler succeeds, before its transaction is saved and committed.
-/// </summary>
-/// <remarks>
-/// Command and event pipelines share this publication logic. The caller owns transaction and outbox management
-/// and must invoke the behavior only after successful handler completion.
-/// </remarks>
-public sealed class PublishDomainEventsBehavior
 {
     private readonly IEventBus eventBus;
     private readonly IAggregateTracker aggregateTracker;
 
     /// <summary>
-    /// Initializes the publication behavior for the current aggregate tracking scope.
+    /// Initializes the behavior for the current aggregate tracking scope.
     /// </summary>
     /// <param name="eventBus">The event bus used to publish pending domain events.</param>
     /// <param name="aggregateTracker">The tracker containing aggregates touched by the handler.</param>
@@ -70,39 +31,41 @@ public sealed class PublishDomainEventsBehavior
     }
 
     /// <summary>
-    /// Publishes pending events and clears tracking only after all publications complete successfully.
+    /// Publishes events for successful commands and event handlers, or discards them for failed command results.
+    /// Queries and messages without a command or domain-event contract leave events and tracking untouched.
     /// </summary>
+    /// <param name="request">The message that was processed.</param>
+    /// <param name="result">The command result, or a successful Result supplied after event-handler completion.</param>
     /// <param name="cancellationToken">The token used to cancel publication.</param>
     /// <returns>A task that represents the asynchronous publication operation.</returns>
-    public async Task AfterAsync(CancellationToken cancellationToken)
+    public async Task AfterAsync(TMessage request, TResult result, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request is IQuery<TResult> || request is not ICommand<TResult> && request is not DomainEvent)
+        {
+            return;
+        }
+
+        ArgumentNullException.ThrowIfNull(result);
         var aggregateRoots = aggregateTracker.GetAll();
 
-        foreach (var aggregateRoot in aggregateRoots)
+        if (result.IsSuccess)
         {
-            var domainEvents = aggregateRoot.GetDomainEvents();
-
-            foreach (var domainEvent in domainEvents)
+            foreach (var aggregateRoot in aggregateRoots)
             {
-                await eventBus.PublishAsync(domainEvent, cancellationToken);
+                foreach (var domainEvent in aggregateRoot.GetDomainEvents())
+                {
+                    await eventBus.PublishAsync(domainEvent, cancellationToken);
+                }
             }
         }
 
-        ClearDomainEvents(aggregateRoots);
-        aggregateTracker.Clear();
-    }
-
-    internal void Clear()
-    {
-        ClearDomainEvents(aggregateTracker.GetAll());
-        aggregateTracker.Clear();
-    }
-
-    private static void ClearDomainEvents(IReadOnlyCollection<IAggregateRoot> aggregateRoots)
-    {
         foreach (var aggregateRoot in aggregateRoots)
         {
             aggregateRoot.ClearDomainEvents();
         }
+
+        aggregateTracker.Clear();
     }
 }

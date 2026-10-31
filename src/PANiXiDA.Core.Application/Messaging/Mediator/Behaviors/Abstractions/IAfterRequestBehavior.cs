@@ -1,5 +1,3 @@
-using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
-
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 
 /// <summary>
@@ -8,7 +6,6 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
 /// <typeparam name="TRequest">The request type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the request.</typeparam>
 public interface IAfterRequestBehavior<TRequest, in TResult>
-    where TRequest : IRequest<TResult>
     where TResult : Result
 {
     /// <summary>
