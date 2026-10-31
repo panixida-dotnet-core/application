@@ -19,7 +19,7 @@ namespace PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 /// Cleanup failures must propagate together with the original exception, even if a result was replaced.
 /// Unhandled exceptions retain their original instance and stack trace. Background delivery requires an explicit policy.
 /// </remarks>
-public interface IFinallyMessageBehavior<TMessage, in TResult>
+public interface IFinallyMessageBehavior<in TMessage, in TResult>
     where TMessage : IMessage
     where TResult : Result
 {

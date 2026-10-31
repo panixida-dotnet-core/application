@@ -281,14 +281,14 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 `IRequest<TResult>` inherits the `IMessage` marker from Core.Domain, as does `IDomainEvent`.
 The shared contracts live in `PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions`:
 
-- `IBeforeMessageBehavior<TMessage, TResult, THandler>` runs before message handling.
+- `IBeforeMessageBehavior<TMessage>` runs before message handling.
 - `IAfterMessageBehavior<TMessage, TResult>` runs after successful handler completion.
 - `IFinallyMessageBehavior<TMessage, TResult>` runs after processing completes or fails.
 
-All three require `TMessage : IMessage`. Before behaviors also require
-`THandler : IMessageHandler<TMessage>`, preserving the association between handler and message.
-`IRequestHandler<TRequest, TResult>` and `IEventHandler<TEvent>` inherit this shared marker;
-their existing handling methods and return types are preserved.
+All three require `TMessage : IMessage`. The before contract accepts only the message and returns
+`Result` to continue or stop processing; result and handler type parameters remain on the concrete
+behaviors that use them for typed request/command constraints. Request and event handler contracts
+retain their existing methods and return types.
 
 The concrete authorization, validation, transaction, persistence, cleanup, and concurrency behaviors
 retain their existing request/command constraints. Only `PublishDomainEventsBehavior` broadens its
@@ -298,7 +298,8 @@ to each supported pipeline; adding these contracts does not configure event disp
 Version 6.0 replaces the public `IBeforeRequestBehavior`, `IAfterRequestBehavior`, and
 `IFinallyRequestBehavior` names and their mediator-specific namespace. Custom behaviors and adapters
 must migrate to the message contracts and namespace above. Request-specific implementations can keep
-their existing `IRequest<TResult>` or `ICommand<TResult>` constraints.
+their existing `IRequest<TResult>` or `ICommand<TResult>` constraints. Named behavior method calls
+use `message` instead of `request`.
 
 ## Request Behaviors
 
@@ -533,7 +534,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `ICommandHandler<TCommand, TResult>` handles state-changing requests.
 - `IQueryHandler<TQuery, TResult>` handles read-only requests.
 - `IReadModel` identifies query and read repository result payloads.
-- `IBeforeMessageBehavior<TMessage, TResult, THandler>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
+- `IBeforeMessageBehavior<TMessage>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterMessageBehavior<TMessage, TResult>` runs after a handler returns a result and is defined in the shared message behavior abstractions namespace.
 - `IFinallyMessageBehavior<TMessage, TResult>` runs after message processing completes or fails and returns the current result or a replacement for the next finally behavior.
 - `ConcurrencyExceptionBehavior<TRequest, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.

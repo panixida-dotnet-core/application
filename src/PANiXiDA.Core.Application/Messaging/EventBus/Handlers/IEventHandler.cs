@@ -1,12 +1,10 @@
-using PANiXiDA.Core.Application.Messaging.Handlers;
-
-namespace PANiXiDA.Core.Application.Messaging.EventBus.Handlers;
+﻿namespace PANiXiDA.Core.Application.Messaging.EventBus.Handlers;
 
 /// <summary>
 /// Handles a published domain event.
 /// </summary>
 /// <typeparam name="TEvent">The domain event type handled by the handler.</typeparam>
-public interface IEventHandler<in TEvent> : IMessageHandler<TEvent>
+public interface IEventHandler<in TEvent>
     where TEvent : DomainEvent
 {
     /// <summary>

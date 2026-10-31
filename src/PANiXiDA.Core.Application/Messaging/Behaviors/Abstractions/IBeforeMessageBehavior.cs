@@ -1,5 +1,4 @@
 using PANiXiDA.Core.Domain.Abstractions;
-using PANiXiDA.Core.Application.Messaging.Handlers;
 
 namespace PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 
@@ -7,12 +6,8 @@ namespace PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 /// Defines behavior that runs before a message handler is executed.
 /// </summary>
 /// <typeparam name="TMessage">The message type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type used by the message processing pipeline.</typeparam>
-/// <typeparam name="THandler">The handler type processing the message.</typeparam>
-public interface IBeforeMessageBehavior<TMessage, TResult, THandler>
+public interface IBeforeMessageBehavior<in TMessage>
     where TMessage : IMessage
-    where TResult : Result
-    where THandler : IMessageHandler<TMessage>
 {
     /// <summary>
     /// Executes behavior before the message handler runs.

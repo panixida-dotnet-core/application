@@ -7,7 +7,7 @@ namespace PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 /// </summary>
 /// <typeparam name="TMessage">The message type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type used by the message processing pipeline.</typeparam>
-public interface IAfterMessageBehavior<TMessage, in TResult>
+public interface IAfterMessageBehavior<in TMessage, in TResult>
     where TMessage : IMessage
     where TResult : Result
 {

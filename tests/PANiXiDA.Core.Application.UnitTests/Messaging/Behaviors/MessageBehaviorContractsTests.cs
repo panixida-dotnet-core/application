@@ -1,6 +1,4 @@
 using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
-using PANiXiDA.Core.Application.Messaging.EventBus.Handlers;
-using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
 using PANiXiDA.Core.ResultPattern;
 
@@ -28,21 +26,19 @@ public sealed class MessageBehaviorContractsTests
         exception.ShouldNotBeNull();
     }
 
-    [Fact(DisplayName = "Before message contracts accept handlers for domain events")]
-    public void BeforeContract_WhenClosedForEventHandler_AcceptsHandler()
+    [Fact(DisplayName = "Before message contracts accept domain events")]
+    public void BeforeContract_WhenClosedForDomainEvent_AcceptsMessage()
     {
-        var contract = typeof(IBeforeMessageBehavior<,,>).MakeGenericType(
-            typeof(TestDomainEvent), typeof(Result), typeof(IEventHandler<TestDomainEvent>));
+        var contract = typeof(IBeforeMessageBehavior<>).MakeGenericType(typeof(TestDomainEvent));
 
         contract.IsConstructedGenericType.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Before message contracts reject handlers for another message type")]
-    public void BeforeContract_WhenHandlerProcessesAnotherMessage_RejectsHandler()
+    [Fact(DisplayName = "Before message contracts reject types without a message contract")]
+    public void BeforeContract_WhenMessageContractIsMissing_RejectsType()
     {
-        var exception = Should.Throw<ArgumentException>(() => typeof(IBeforeMessageBehavior<,,>).MakeGenericType(
-            typeof(TestDomainEvent), typeof(Result), typeof(IRequestHandler<TestCommand, Result>)));
+        void act() => typeof(IBeforeMessageBehavior<>).MakeGenericType(typeof(string));
 
-        exception.ShouldNotBeNull();
+        Should.Throw<ArgumentException>(act);
     }
 }

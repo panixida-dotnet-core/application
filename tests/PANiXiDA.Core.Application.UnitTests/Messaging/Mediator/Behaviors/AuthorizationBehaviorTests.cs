@@ -63,7 +63,7 @@ public sealed class AuthorizationBehaviorTests
     public async Task BeforeAsync_Should_Authorize_Without_Permissions_Or_User_Id()
     {
         var currentUser = new RecordingCurrentUser(true);
-        IBeforeMessageBehavior<TestCommand, Result, AuthenticatedHandler> behavior =
+        IBeforeMessageBehavior<TestCommand> behavior =
             new AuthorizationBehavior<TestCommand, Result, AuthenticatedHandler>(currentUser);
 
         var commandResult = await behavior.BeforeAsync(new TestCommand(), TestContext.Current.CancellationToken);

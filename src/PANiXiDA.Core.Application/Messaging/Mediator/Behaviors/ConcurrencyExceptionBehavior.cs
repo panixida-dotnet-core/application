@@ -7,8 +7,8 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <summary>
 /// Converts a direct optimistic concurrency exception to a conflict failure result.
 /// </summary>
-/// <typeparam name="TRequest">The request type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type returned by the request.</typeparam>
+/// <typeparam name="TRequest">The message type processed by the behavior.</typeparam>
+/// <typeparam name="TResult">The result type returned by the message.</typeparam>
 /// <remarks>
 /// Existing failure results are preserved. Other exception types, including aggregates and cancellation,
 /// are not handled. Diagnostic exception messages are not exposed in the returned error.
@@ -21,13 +21,13 @@ public sealed class ConcurrencyExceptionBehavior<TRequest, TResult> : IFinallyMe
     /// <summary>
     /// Offers a conflict result for a concurrency exception when there is no existing failure result.
     /// </summary>
-    /// <param name="request">The request that was processed.</param>
-    /// <param name="result">The current request result, or null when no result was produced.</param>
+    /// <param name="message">The message that was processed.</param>
+    /// <param name="result">The current message result, or null when no result was produced.</param>
     /// <param name="exception">The processing exception to inspect, if any.</param>
     /// <param name="cancellationToken">The cancellation token for the operation.</param>
     /// <returns>A conflict failure result for a handled exception, or the supplied result unchanged.</returns>
     public Task<Result?> FinallyAsync(
-        TRequest request,
+        TRequest message,
         TResult? result,
         Exception? exception,
         CancellationToken cancellationToken)

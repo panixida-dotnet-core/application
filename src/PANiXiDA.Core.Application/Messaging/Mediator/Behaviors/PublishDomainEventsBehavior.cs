@@ -10,9 +10,9 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// Publishes domain events collected from tracked aggregate roots after a successful message result.
 /// </summary>
 /// <typeparam name="TRequest">The message type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type returned by the request.</typeparam>
+/// <typeparam name="TResult">The result type returned by the message.</typeparam>
 /// <param name="eventBus">The event bus used to publish domain events.</param>
-/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the request.</param>
+/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the message.</param>
 public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
     IEventBus eventBus,
     IAggregateTracker aggregateTracker) : IAfterMessageBehavior<TRequest, TResult>
@@ -20,18 +20,18 @@ public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
     where TResult : Result
 {
     /// <summary>
-    /// Publishes domain events when the request succeeded and clears tracked events after completed publication.
+    /// Publishes domain events when the message succeeded and clears tracked events after completed publication.
     /// </summary>
-    /// <param name="request">The request that was processed.</param>
-    /// <param name="result">The request execution result.</param>
+    /// <param name="message">The message that was processed.</param>
+    /// <param name="result">The message execution result.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task AfterAsync(
-        TRequest request,
+        TRequest message,
         TResult result,
         CancellationToken cancellationToken)
     {
-        if (request is IQuery<Result>)
+        if (message is IQuery<Result>)
         {
             return;
         }

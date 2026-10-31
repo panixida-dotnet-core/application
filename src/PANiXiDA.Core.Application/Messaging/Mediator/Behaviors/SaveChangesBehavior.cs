@@ -16,7 +16,7 @@ public sealed class SaveChangesBehavior<TCommand, TResult>(IUnitOfWork unitOfWor
     where TResult : Result
 {
     /// <inheritdoc />
-    public Task AfterAsync(TCommand request, TResult result, CancellationToken cancellationToken)
+    public Task AfterAsync(TCommand message, TResult result, CancellationToken cancellationToken)
     {
         if (!result.IsSuccess)
         {

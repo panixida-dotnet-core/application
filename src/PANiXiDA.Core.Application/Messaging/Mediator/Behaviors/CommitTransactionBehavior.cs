@@ -21,12 +21,12 @@ public sealed class CommitTransactionBehavior<TCommand, TResult, THandler>(IUnit
     /// <summary>
     /// Commits the active transaction when the command succeeded.
     /// </summary>
-    /// <param name="request">The command that was processed.</param>
+    /// <param name="message">The command that was processed.</param>
     /// <param name="result">The command execution result.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public Task AfterAsync(
-        TCommand request,
+        TCommand message,
         TResult result,
         CancellationToken cancellationToken)
     {

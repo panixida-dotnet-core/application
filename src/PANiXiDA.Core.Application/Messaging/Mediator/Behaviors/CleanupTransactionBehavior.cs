@@ -23,7 +23,7 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult, THandler>(IUni
     /// <summary>
     /// Rolls back the active transaction on failure and releases transaction resources.
     /// </summary>
-    /// <param name="request">The command that was processed.</param>
+    /// <param name="message">The command that was processed.</param>
     /// <param name="result">The current command result, if any.</param>
     /// <param name="exception">The exception thrown during command processing, if any.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
@@ -34,7 +34,7 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult, THandler>(IUni
     /// If cleanup succeeds, propagating the supplied exception remains the caller's responsibility.
     /// </remarks>
     public async Task<Result?> FinallyAsync(
-        TCommand request,
+        TCommand message,
         TResult? result,
         Exception? exception,
         CancellationToken cancellationToken)
