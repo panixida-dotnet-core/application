@@ -1,35 +1,41 @@
 using PANiXiDA.Core.Application.Messaging.EventBus;
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Persistence;
+using PANiXiDA.Core.Domain.Abstractions;
 
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 
 /// <summary>
-/// Publishes domain events collected from tracked aggregate roots after a successful command result.
+/// Publishes domain events collected from tracked aggregate roots after a successful message result.
 /// </summary>
-/// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
-/// <typeparam name="TResult">The result type returned by the command.</typeparam>
+/// <typeparam name="TRequest">The message type processed by the behavior.</typeparam>
+/// <typeparam name="TResult">The result type returned by the message.</typeparam>
 /// <param name="eventBus">The event bus used to publish domain events.</param>
-/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the command.</param>
-public sealed class PublishDomainEventsBehavior<TCommand, TResult>(
+/// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the message.</param>
+public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
     IEventBus eventBus,
-    IAggregateTracker aggregateTracker) : IAfterRequestBehavior<TCommand, TResult>
-    where TCommand : ICommand<TResult>
+    IAggregateTracker aggregateTracker) : IAfterMessageBehavior<TRequest, TResult>
+    where TRequest : IMessage
     where TResult : Result
 {
     /// <summary>
-    /// Publishes domain events when the command succeeded and clears tracked events after completed publication.
+    /// Publishes domain events when the message succeeded and clears tracked events after completed publication.
     /// </summary>
-    /// <param name="request">The command that was processed.</param>
-    /// <param name="result">The command execution result.</param>
+    /// <param name="message">The message that was processed.</param>
+    /// <param name="result">The message execution result.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task AfterAsync(
-        TCommand request,
+        TRequest message,
         TResult result,
         CancellationToken cancellationToken)
     {
+        if (message is IQuery<Result>)
+        {
+            return;
+        }
+
         var aggregateRoots = aggregateTracker.GetAll();
 
         if (result.IsFailure)

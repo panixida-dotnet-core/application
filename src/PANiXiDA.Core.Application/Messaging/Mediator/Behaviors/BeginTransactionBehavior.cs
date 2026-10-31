@@ -1,4 +1,4 @@
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Persistence;
@@ -13,7 +13,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <typeparam name="THandler">The handler type processing the command.</typeparam>
 /// <param name="unitOfWork">The unit of work used to manage transactions.</param>
 public sealed class BeginTransactionBehavior<TCommand, TResult, THandler>(IUnitOfWork unitOfWork)
-    : IBeforeRequestBehavior<TCommand, TResult, THandler>
+    : IBeforeMessageBehavior<TCommand>
     where TCommand : ICommand<TResult>
     where TResult : Result
     where THandler : IRequestHandler<TCommand, TResult>, IRequireTransaction
@@ -21,13 +21,13 @@ public sealed class BeginTransactionBehavior<TCommand, TResult, THandler>(IUnitO
     /// <summary>
     /// Begins a transaction before the command handler runs.
     /// </summary>
-    /// <param name="request">The command being processed.</param>
+    /// <param name="message">The command being processed.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>
-    /// A task that returns a successful result when request processing should continue to the handler.
+    /// A task that returns a successful result when message processing should continue to the handler.
     /// </returns>
     public async Task<Result> BeforeAsync(
-        TCommand request,
+        TCommand message,
         CancellationToken cancellationToken)
     {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
