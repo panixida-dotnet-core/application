@@ -1,4 +1,5 @@
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
+using PANiXiDA.Core.Application.Messaging.Handlers;
 
 namespace PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 
@@ -7,7 +8,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 /// </summary>
 /// <typeparam name="TRequest">The request type handled by the handler.</typeparam>
 /// <typeparam name="TResult">The result type returned by the request.</typeparam>
-public interface IRequestHandler<in TRequest, TResult>
+public interface IRequestHandler<in TRequest, TResult> : IMessageHandler<TRequest>
     where TRequest : IRequest<TResult>
     where TResult : Result
 {

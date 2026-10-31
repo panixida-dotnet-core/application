@@ -1,6 +1,6 @@
 using FluentValidation;
 
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 
@@ -17,7 +17,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// Creates a validation failure result when one or more FluentValidation validators report failures.
 /// </remarks>
 public sealed class ValidationBehavior<TRequest, TResult, THandler>(
-    IEnumerable<IValidator<TRequest>> validators) : IBeforeRequestBehavior<TRequest, TResult, THandler>
+    IEnumerable<IValidator<TRequest>> validators) : IBeforeMessageBehavior<TRequest, TResult, THandler>
     where TRequest : IRequest<TResult>
     where TResult : Result
     where THandler : IRequestHandler<TRequest, TResult>

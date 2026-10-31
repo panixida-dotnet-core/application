@@ -3,6 +3,7 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
+using PANiXiDA.Core.Domain.Abstractions;
 using PANiXiDA.Core.ResultPattern;
 
 namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
@@ -230,10 +231,11 @@ public sealed class RequestBehaviorsTests
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
-    [Theory(DisplayName = "PublishDomainEventsBehavior publishes tracked events for commands and plain requests")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task AfterAsync_WhenRequestSucceeded_PublishesDomainEventsAndClearsTracking(bool isCommand)
+    [Theory(DisplayName = "PublishDomainEventsBehavior publishes tracked events for commands, requests and events")]
+    [InlineData("command")]
+    [InlineData("request")]
+    [InlineData("event")]
+    public async Task AfterAsync_WhenMessageSucceeded_PublishesDomainEventsAndClearsTracking(string messageKind)
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
@@ -244,8 +246,14 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(secondEvent);
         aggregateTracker.Track(aggregateRoot);
 
-        IRequest<Result> request = isCommand ? new TestCommand() : new TestRequest();
-        var behavior = new PublishDomainEventsBehavior<IRequest<Result>, Result>(eventBus, aggregateTracker);
+        IMessage request = messageKind switch
+        {
+            "command" => new TestCommand(),
+            "request" => new TestRequest(),
+            "event" => new TestDomainEvent(),
+            _ => throw new ArgumentOutOfRangeException(nameof(messageKind))
+        };
+        var behavior = new PublishDomainEventsBehavior<IMessage, Result>(eventBus, aggregateTracker);
 
         await behavior.AfterAsync(request, Result.Success(), CancellationToken.None);
 
@@ -265,7 +273,7 @@ public sealed class RequestBehaviorsTests
         var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
         aggregateRoot.Raise(new TestDomainEvent());
         aggregateTracker.Track(aggregateRoot);
-        var behavior = new PublishDomainEventsBehavior<TestValidatedQuery, Result<string>>(eventBus, aggregateTracker);
+        var behavior = new PublishDomainEventsBehavior<IMessage, Result<string>>(eventBus, aggregateTracker);
         var result = succeeds ? Result.Success("query") : Result.Failure<string>(Error.Failure("Failed query."));
 
         await behavior.AfterAsync(new TestValidatedQuery("query"), result, TestContext.Current.CancellationToken);

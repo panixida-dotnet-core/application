@@ -1,5 +1,5 @@
 using PANiXiDA.Core.Application.Authentication.Abstractions;
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 
@@ -13,7 +13,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <typeparam name="THandler">The handler type declaring the authorization requirements.</typeparam>
 /// <param name="currentUser">The current caller.</param>
 public sealed class AuthorizationBehavior<TRequest, TResult, THandler>(ICurrentUser currentUser)
-    : IBeforeRequestBehavior<TRequest, TResult, THandler>
+    : IBeforeMessageBehavior<TRequest, TResult, THandler>
     where TRequest : IRequest<TResult>
     where TResult : Result
     where THandler : IRequestHandler<TRequest, TResult>, IRequireAuthorization

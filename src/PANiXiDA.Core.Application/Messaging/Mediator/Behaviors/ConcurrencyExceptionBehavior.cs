@@ -1,4 +1,4 @@
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Persistence.Errors;
 
@@ -14,7 +14,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// are not handled. Diagnostic exception messages are not exposed in the returned error.
 /// The mediator must accept exception handling only after all finally behaviors succeed.
 /// </remarks>
-public sealed class ConcurrencyExceptionBehavior<TRequest, TResult> : IFinallyRequestBehavior<TRequest, TResult>
+public sealed class ConcurrencyExceptionBehavior<TRequest, TResult> : IFinallyMessageBehavior<TRequest, TResult>
     where TRequest : IRequest<TResult>
     where TResult : Result
 {
