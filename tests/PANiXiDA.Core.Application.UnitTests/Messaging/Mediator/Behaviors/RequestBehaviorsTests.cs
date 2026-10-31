@@ -230,8 +230,10 @@ public sealed class RequestBehaviorsTests
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "PublishDomainEventsBehavior publishes events from tracked aggregates")]
-    public async Task AfterAsync_WhenCommandSucceeded_PublishesDomainEventsAndClearsTracking()
+    [Theory(DisplayName = "PublishDomainEventsBehavior publishes tracked events for commands and plain requests")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AfterAsync_WhenRequestSucceeded_PublishesDomainEventsAndClearsTracking(bool isCommand)
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
@@ -242,14 +244,36 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(secondEvent);
         aggregateTracker.Track(aggregateRoot);
 
-        var behavior = new PublishDomainEventsBehavior<TestCommand, Result>(eventBus, aggregateTracker);
+        IRequest<Result> request = isCommand ? new TestCommand() : new TestRequest();
+        var behavior = new PublishDomainEventsBehavior<IRequest<Result>, Result>(eventBus, aggregateTracker);
 
-        await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
+        await behavior.AfterAsync(request, Result.Success(), CancellationToken.None);
 
         eventBus.PublishedEvents.ShouldBe(new[] { firstEvent, secondEvent });
         aggregateRoot.GetDomainEvents().ShouldBeEmpty();
         aggregateTracker.ClearCalls.ShouldBe(1);
         aggregateTracker.GetAll().ShouldBeEmpty();
+    }
+
+    [Theory(DisplayName = "PublishDomainEventsBehavior leaves tracked events untouched for successful and failed queries")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AfterAsync_WhenQueryCompletes_DoesNotPublishOrClearTracking(bool succeeds)
+    {
+        var eventBus = new TestEventBus();
+        var aggregateTracker = new TestAggregateTracker();
+        var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
+        aggregateRoot.Raise(new TestDomainEvent());
+        aggregateTracker.Track(aggregateRoot);
+        var behavior = new PublishDomainEventsBehavior<TestValidatedQuery, Result<string>>(eventBus, aggregateTracker);
+        var result = succeeds ? Result.Success("query") : Result.Failure<string>(Error.Failure("Failed query."));
+
+        await behavior.AfterAsync(new TestValidatedQuery("query"), result, TestContext.Current.CancellationToken);
+
+        eventBus.PublishedEvents.ShouldBeEmpty();
+        aggregateRoot.GetDomainEvents().ShouldHaveSingleItem();
+        aggregateTracker.GetAll().ShouldHaveSingleItem();
+        aggregateTracker.ClearCalls.ShouldBe(0);
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior clears tracking without publishing failed command results")]
