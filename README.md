@@ -276,34 +276,14 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 - Register the query validator in the application's validation pipeline.
   Applying sorting to `IQueryable` belongs to the persistence adapter.
 
-## Message Behavior Contracts
-
-`IRequest<TResult>` inherits the `IMessage` marker from Core.Domain, as does `IDomainEvent`.
-The shared contracts live in `PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions`:
-
-- `IBeforeMessageBehavior<TMessage>` runs before message handling.
-- `IAfterMessageBehavior<TMessage, TResult>` runs after successful handler completion.
-- `IFinallyMessageBehavior<TMessage, TResult>` runs after processing completes or fails.
-
-All three require `TMessage : IMessage`. The before contract accepts only the message and returns
-`Result` to continue or stop processing; result and handler type parameters remain on the concrete
-behaviors that use them for typed request/command constraints. Request and event handler contracts
-retain their existing methods and return types.
-
-The concrete authorization, validation, transaction, persistence, cleanup, and concurrency behaviors
-retain their existing request/command constraints. Only `PublishDomainEventsBehavior` broadens its
-message constraint and continues to skip queries. The adapter must explicitly bind message behaviors
-to each supported pipeline; adding these contracts does not configure event dispatch automatically.
-
-Version 6.0 replaces the public `IBeforeRequestBehavior`, `IAfterRequestBehavior`, and
-`IFinallyRequestBehavior` names and their mediator-specific namespace. Custom behaviors and adapters
-must migrate to the message contracts and namespace above. Request-specific implementations can keep
-their existing `IRequest<TResult>` or `ICommand<TResult>` constraints. Named behavior method calls
-use `message` instead of `request`.
-
 ## Request Behaviors
 
-The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling:
+The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling.
+
+The before, after, and finally contracts live in `PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions`
+and require `TMessage : IMessage`. Concrete behaviors keep their request, command, and handler constraints.
+Version 6.0 renames the `I*RequestBehavior` contracts to `I*MessageBehavior` and their method parameter
+to `message`; custom behaviors and adapters must use the new names and namespace.
 
 - `AuthorizationBehavior<TMessage, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
 - `ValidationBehavior<TMessage, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TMessage>` implementations and returns a failed `Result` before the handler runs when validation fails.
