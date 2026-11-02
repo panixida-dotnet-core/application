@@ -9,14 +9,14 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <summary>
 /// Publishes domain events collected from tracked aggregate roots after a successful message result.
 /// </summary>
-/// <typeparam name="TRequest">The message type processed by the behavior.</typeparam>
+/// <typeparam name="TMessage">The message type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the message.</typeparam>
 /// <param name="eventBus">The event bus used to publish domain events.</param>
 /// <param name="aggregateTracker">The tracker that stores aggregate roots touched by the message.</param>
-public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
+public sealed class PublishDomainEventsBehavior<TMessage, TResult>(
     IEventBus eventBus,
-    IAggregateTracker aggregateTracker) : IAfterMessageBehavior<TRequest, TResult>
-    where TRequest : IMessage
+    IAggregateTracker aggregateTracker) : IAfterMessageBehavior<TMessage, TResult>
+    where TMessage : IMessage
     where TResult : Result
 {
     /// <summary>
@@ -27,7 +27,7 @@ public sealed class PublishDomainEventsBehavior<TRequest, TResult>(
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task AfterAsync(
-        TRequest message,
+        TMessage message,
         TResult result,
         CancellationToken cancellationToken)
     {
