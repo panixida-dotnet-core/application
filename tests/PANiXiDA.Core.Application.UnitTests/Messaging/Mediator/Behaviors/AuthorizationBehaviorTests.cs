@@ -1,7 +1,7 @@
 using System.Globalization;
 
 using PANiXiDA.Core.Application.Authentication.Abstractions;
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
@@ -63,7 +63,7 @@ public sealed class AuthorizationBehaviorTests
     public async Task BeforeAsync_Should_Authorize_Without_Permissions_Or_User_Id()
     {
         var currentUser = new RecordingCurrentUser(true);
-        IBeforeRequestBehavior<TestCommand, Result, AuthenticatedHandler> behavior =
+        IBeforeMessageBehavior<TestCommand> behavior =
             new AuthorizationBehavior<TestCommand, Result, AuthenticatedHandler>(currentUser);
 
         var commandResult = await behavior.BeforeAsync(new TestCommand(), TestContext.Current.CancellationToken);

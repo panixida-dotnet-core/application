@@ -3,6 +3,7 @@ using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors.Fakes;
+using PANiXiDA.Core.Domain.Abstractions;
 using PANiXiDA.Core.ResultPattern;
 
 namespace PANiXiDA.Core.Application.UnitTests.Messaging.Mediator.Behaviors;
@@ -25,7 +26,6 @@ public sealed class RequestBehaviorsTests
 
     [Theory(DisplayName = "Command behaviors reject queries")]
     [InlineData(typeof(BeginTransactionBehavior<,,>))]
-    [InlineData(typeof(PublishDomainEventsBehavior<,>))]
     [InlineData(typeof(SaveChangesBehavior<,>))]
     [InlineData(typeof(CommitTransactionBehavior<,,>))]
     [InlineData(typeof(CleanupTransactionBehavior<,,>))]
@@ -37,16 +37,6 @@ public sealed class RequestBehaviorsTests
         void act() => behaviorType.MakeGenericType(behaviorType.GetGenericArguments().Length == 3
             ? [queryType, resultType, typeof(TestRequestHandler<TestValidatedQuery, Result<string>>)]
             : [queryType, resultType]);
-
-        Should.Throw<ArgumentException>(act);
-    }
-
-    [Fact(DisplayName = "PublishDomainEventsBehavior rejects requests without a command contract")]
-    public void PublishDomainEventsBehavior_WhenClosedForPlainRequest_RejectsRequest()
-    {
-        var behaviorType = typeof(PublishDomainEventsBehavior<,>);
-
-        void act() => behaviorType.MakeGenericType(typeof(TestRequest), typeof(Result));
 
         Should.Throw<ArgumentException>(act);
     }
@@ -241,8 +231,11 @@ public sealed class RequestBehaviorsTests
         unitOfWork.DisposeTransactionCalls.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "PublishDomainEventsBehavior publishes events from tracked aggregates")]
-    public async Task AfterAsync_WhenCommandSucceeded_PublishesDomainEventsAndClearsTracking()
+    [Theory(DisplayName = "PublishDomainEventsBehavior publishes tracked events for commands, requests and events")]
+    [InlineData("command")]
+    [InlineData("request")]
+    [InlineData("event")]
+    public async Task AfterAsync_WhenMessageSucceeded_PublishesDomainEventsAndClearsTracking(string messageKind)
     {
         var eventBus = new TestEventBus();
         var aggregateTracker = new TestAggregateTracker();
@@ -253,14 +246,42 @@ public sealed class RequestBehaviorsTests
         aggregateRoot.Raise(secondEvent);
         aggregateTracker.Track(aggregateRoot);
 
-        var behavior = new PublishDomainEventsBehavior<TestCommand, Result>(eventBus, aggregateTracker);
+        IMessage request = messageKind switch
+        {
+            "command" => new TestCommand(),
+            "request" => new TestRequest(),
+            "event" => new TestDomainEvent(),
+            _ => throw new ArgumentOutOfRangeException(nameof(messageKind))
+        };
+        var behavior = new PublishDomainEventsBehavior<IMessage, Result>(eventBus, aggregateTracker);
 
-        await behavior.AfterAsync(new TestCommand(), Result.Success(), CancellationToken.None);
+        await behavior.AfterAsync(request, Result.Success(), CancellationToken.None);
 
         eventBus.PublishedEvents.ShouldBe(new[] { firstEvent, secondEvent });
         aggregateRoot.GetDomainEvents().ShouldBeEmpty();
         aggregateTracker.ClearCalls.ShouldBe(1);
         aggregateTracker.GetAll().ShouldBeEmpty();
+    }
+
+    [Theory(DisplayName = "PublishDomainEventsBehavior leaves tracked events untouched for successful and failed queries")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AfterAsync_WhenQueryCompletes_DoesNotPublishOrClearTracking(bool succeeds)
+    {
+        var eventBus = new TestEventBus();
+        var aggregateTracker = new TestAggregateTracker();
+        var aggregateRoot = new TestAggregateRoot(new TestAggregateRootId(Guid.NewGuid()));
+        aggregateRoot.Raise(new TestDomainEvent());
+        aggregateTracker.Track(aggregateRoot);
+        var behavior = new PublishDomainEventsBehavior<IMessage, Result<string>>(eventBus, aggregateTracker);
+        var result = succeeds ? Result.Success("query") : Result.Failure<string>(Error.Failure("Failed query."));
+
+        await behavior.AfterAsync(new TestValidatedQuery("query"), result, TestContext.Current.CancellationToken);
+
+        eventBus.PublishedEvents.ShouldBeEmpty();
+        aggregateRoot.GetDomainEvents().ShouldHaveSingleItem();
+        aggregateTracker.GetAll().ShouldHaveSingleItem();
+        aggregateTracker.ClearCalls.ShouldBe(0);
     }
 
     [Fact(DisplayName = "PublishDomainEventsBehavior clears tracking without publishing failed command results")]

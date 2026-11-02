@@ -1,6 +1,6 @@
 using System.Runtime.ExceptionServices;
 
-using PANiXiDA.Core.Application.Messaging.Mediator.Behaviors.Abstractions;
+using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
 using PANiXiDA.Core.Application.Persistence;
@@ -10,20 +10,20 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <summary>
 /// Rolls back failed command transactions and releases transaction resources.
 /// </summary>
-/// <typeparam name="TCommand">The command type processed by the behavior.</typeparam>
+/// <typeparam name="TMessage">The message type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the command.</typeparam>
 /// <typeparam name="THandler">The handler requiring an automatically managed transaction.</typeparam>
 /// <param name="unitOfWork">The unit of work used to manage transactions.</param>
-public sealed class CleanupTransactionBehavior<TCommand, TResult, THandler>(IUnitOfWork unitOfWork)
-    : IFinallyRequestBehavior<TCommand, TResult>
-    where TCommand : ICommand<TResult>
+public sealed class CleanupTransactionBehavior<TMessage, TResult, THandler>(IUnitOfWork unitOfWork)
+    : IFinallyMessageBehavior<TMessage, TResult>
+    where TMessage : ICommand<TResult>
     where TResult : Result
-    where THandler : IRequestHandler<TCommand, TResult>, IRequireTransaction
+    where THandler : IRequestHandler<TMessage, TResult>, IRequireTransaction
 {
     /// <summary>
     /// Rolls back the active transaction on failure and releases transaction resources.
     /// </summary>
-    /// <param name="request">The command that was processed.</param>
+    /// <param name="message">The command that was processed.</param>
     /// <param name="result">The current command result, if any.</param>
     /// <param name="exception">The exception thrown during command processing, if any.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
@@ -34,7 +34,7 @@ public sealed class CleanupTransactionBehavior<TCommand, TResult, THandler>(IUni
     /// If cleanup succeeds, propagating the supplied exception remains the caller's responsibility.
     /// </remarks>
     public async Task<Result?> FinallyAsync(
-        TCommand request,
+        TMessage message,
         TResult? result,
         Exception? exception,
         CancellationToken cancellationToken)
