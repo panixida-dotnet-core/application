@@ -9,18 +9,18 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <summary>
 /// Validates a message before the message handler executes.
 /// </summary>
-/// <typeparam name="TRequest">The message type processed by the behavior.</typeparam>
+/// <typeparam name="TMessage">The message type processed by the behavior.</typeparam>
 /// <typeparam name="TResult">The result type returned by the message.</typeparam>
 /// <typeparam name="THandler">The handler type processing the message.</typeparam>
 /// <param name="validators">The validators used to validate the message.</param>
 /// <remarks>
 /// Creates a validation failure result when one or more FluentValidation validators report failures.
 /// </remarks>
-public sealed class ValidationBehavior<TRequest, TResult, THandler>(
-    IEnumerable<IValidator<TRequest>> validators) : IBeforeMessageBehavior<TRequest>
-    where TRequest : IRequest<TResult>
+public sealed class ValidationBehavior<TMessage, TResult, THandler>(
+    IEnumerable<IValidator<TMessage>> validators) : IBeforeMessageBehavior<TMessage>
+    where TMessage : IRequest<TResult>
     where TResult : Result
-    where THandler : IRequestHandler<TRequest, TResult>
+    where THandler : IRequestHandler<TMessage, TResult>
 {
     /// <summary>
     /// Validates the message and returns a failure result when validation fails.
@@ -31,7 +31,7 @@ public sealed class ValidationBehavior<TRequest, TResult, THandler>(
     /// A task that returns a successful result when validation passes, or a validation failure result when validation fails.
     /// </returns>
     public async Task<Result> BeforeAsync(
-        TRequest message,
+        TMessage message,
         CancellationToken cancellationToken)
     {
         var errors = new List<Error>();

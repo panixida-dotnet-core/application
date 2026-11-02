@@ -305,14 +305,14 @@ use `message` instead of `request`.
 
 The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling:
 
-- `AuthorizationBehavior<TRequest, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
-- `ValidationBehavior<TRequest, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TRequest>` implementations and returns a failed `Result` before the handler runs when validation fails.
-- `BeginTransactionBehavior<TCommand, TResult, THandler>` starts a transaction before a command handler runs.
+- `AuthorizationBehavior<TMessage, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
+- `ValidationBehavior<TMessage, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TMessage>` implementations and returns a failed `Result` before the handler runs when validation fails.
+- `BeginTransactionBehavior<TMessage, TResult, THandler>` starts a transaction before a command handler runs.
 - `PublishDomainEventsBehavior<TMessage, TResult>` accepts the shared `IMessage` contract, skips queries before accessing aggregate tracking, and otherwise publishes and clears events using the supplied result.
-- `SaveChangesBehavior<TCommand, TResult>` saves pending changes after a successful command result, with or without an active transaction.
-- `CommitTransactionBehavior<TCommand, TResult, THandler>` commits the active transaction after a successful command result.
-- `CleanupTransactionBehavior<TCommand, TResult, THandler>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
-- `ConcurrencyExceptionBehavior<TRequest, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
+- `SaveChangesBehavior<TMessage, TResult>` saves pending changes after a successful command result, with or without an active transaction.
+- `CommitTransactionBehavior<TMessage, TResult, THandler>` commits the active transaction after a successful command result.
+- `CleanupTransactionBehavior<TMessage, TResult, THandler>` rolls back failed command transactions, disposes transaction resources, and returns the supplied result unchanged.
+- `ConcurrencyExceptionBehavior<TMessage, TResult>` is a finally behavior that replaces a null or successful result with a conflict failure for a direct `ConcurrencyException`. Otherwise, it returns the supplied result unchanged.
 
 Transaction cleanup always attempts disposal, even if rollback fails. A single failure retains its original exception instance and stack trace. When cleanup adds failures to the command exception, or both rollback and disposal fail, the behavior throws an `AggregateException` containing the failures in execution order, with the command exception first. Existing aggregates are preserved; use `Flatten()` to inspect nested failures. If cleanup succeeds, the mediator remains responsible for propagating the original command exception unless a configured finally behavior handles it by returning a new failure result. A single cancellation remains cancellation; cancellation combined with another failure is reported as an aggregate failure.
 
@@ -347,7 +347,7 @@ Saving changes, domain event publication, and authorization are independent of t
 
 ### Optimistic Concurrency
 
-Persistence adapters report optimistic concurrency conflicts with `ConcurrencyException` from `PANiXiDA.Core.Application.Persistence.Errors`. `ConcurrencyExceptionBehavior<TRequest, TResult>` converts direct conflicts to `Error.Conflict`, preserving existing failed results and leaving other exceptions unhandled.
+Persistence adapters report optimistic concurrency conflicts with `ConcurrencyException` from `PANiXiDA.Core.Application.Persistence.Errors`. `ConcurrencyExceptionBehavior<TMessage, TResult>` converts direct conflicts to `Error.Conflict`, preserving existing failed results and leaving other exceptions unhandled.
 
 `FinallyAsync` now returns `Task<Result?>`: behaviors pass the current result through or replace it. Mediator adapters must pass the returned result to the next behavior and accept exception handling only after all cleanup succeeds. Cleanup failures retain the original processing exception.
 
@@ -537,7 +537,7 @@ The aggregate repository contract is intentionally not defined by this package; 
 - `IBeforeMessageBehavior<TMessage>` runs before a handler and returns `Result.Success()` to continue request processing, or a failed `Result` to stop it.
 - `IAfterMessageBehavior<TMessage, TResult>` runs after a handler returns a result and is defined in the shared message behavior abstractions namespace.
 - `IFinallyMessageBehavior<TMessage, TResult>` runs after message processing completes or fails and returns the current result or a replacement for the next finally behavior.
-- `ConcurrencyExceptionBehavior<TRequest, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.
+- `ConcurrencyExceptionBehavior<TMessage, TResult>` maps direct optimistic concurrency exceptions to `Error.Conflict` without replacing existing failure results.
 
 ### Validation
 
