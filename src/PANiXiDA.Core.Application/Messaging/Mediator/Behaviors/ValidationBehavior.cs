@@ -20,6 +20,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// The handler type parameter constrains pipeline binding to a handler for the message and result types.
 /// </remarks>
 [SuppressMessage("Design", "S2326", Justification = "THandler enforces the request handler constraint when the pipeline binds this behavior.")]
+[SuppressMessage("Design", "S2436", Justification = "Message, result and handler type parameters preserve the compile-time constraints required for pipeline binding.")]
 public sealed class ValidationBehavior<TMessage, TResult, THandler>(
     IEnumerable<IValidator<TMessage>> validators) : IBeforeMessageBehavior<TMessage>
     where TMessage : IRequest<TResult>
