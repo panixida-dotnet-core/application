@@ -281,9 +281,7 @@ there is no criterion count limit. Errors retain paths such as `Sorting.Fields[0
 The package includes reusable mediator behavior implementations for authorization, request validation, command transaction orchestration, domain event publication, and optimistic concurrency handling.
 
 The before, after, and finally contracts live in `PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions`
-and require `TMessage : IMessage`. Concrete behaviors keep their request, command, and handler constraints.
-Version 6.0 renames the `I*RequestBehavior` contracts to `I*MessageBehavior` and their method parameter
-to `message`; custom behaviors and adapters must use the new names and namespace.
+and require `TMessage : IMessage`. Concrete behaviors define their request, command, and handler constraints.
 
 - `AuthorizationBehavior<TMessage, TResult, THandler>` checks authentication and permissions declared by handlers implementing `IRequireAuthorization`.
 - `ValidationBehavior<TMessage, TResult, THandler>` validates requests with registered FluentValidation `IValidator<TMessage>` implementations and returns a failed `Result` before the handler runs when validation fails.
@@ -329,7 +327,7 @@ Saving changes, domain event publication, and authorization are independent of t
 
 Persistence adapters report optimistic concurrency conflicts with `ConcurrencyException` from `PANiXiDA.Core.Application.Persistence.Errors`. `ConcurrencyExceptionBehavior<TMessage, TResult>` converts direct conflicts to `Error.Conflict`, preserving existing failed results and leaving other exceptions unhandled.
 
-`FinallyAsync` now returns `Task<Result?>`: behaviors pass the current result through or replace it. Mediator adapters must pass the returned result to the next behavior and accept exception handling only after all cleanup succeeds. Cleanup failures retain the original processing exception.
+`FinallyAsync` returns `Task<Result?>`: behaviors pass the current result through or replace it. Mediator adapters must pass the returned result to the next behavior and accept exception handling only after all cleanup succeeds. Cleanup failures retain the original processing exception.
 
 Existing finally implementations must adopt the new return type. Provider exception translation and Wolverine integration require separate adapter changes.
 
