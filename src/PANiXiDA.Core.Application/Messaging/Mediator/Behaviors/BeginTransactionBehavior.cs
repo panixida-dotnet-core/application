@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
 using PANiXiDA.Core.Application.Messaging.Mediator.Contracts;
 using PANiXiDA.Core.Application.Messaging.Mediator.Handlers;
@@ -12,6 +14,7 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <typeparam name="TResult">The result type returned by the command.</typeparam>
 /// <typeparam name="THandler">The handler type processing the command.</typeparam>
 /// <param name="unitOfWork">The unit of work used to manage transactions.</param>
+[SuppressMessage("Design", "S2326", Justification = "THandler restricts pipeline binding to request handlers that require a transaction.")]
 public sealed class BeginTransactionBehavior<TMessage, TResult, THandler>(IUnitOfWork unitOfWork)
     : IBeforeMessageBehavior<TMessage>
     where TMessage : ICommand<TResult>

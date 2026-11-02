@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using FluentValidation;
 
 using PANiXiDA.Core.Application.Messaging.Behaviors.Abstractions;
@@ -15,7 +17,9 @@ namespace PANiXiDA.Core.Application.Messaging.Mediator.Behaviors;
 /// <param name="validators">The validators used to validate the message.</param>
 /// <remarks>
 /// Creates a validation failure result when one or more FluentValidation validators report failures.
+/// The handler type parameter constrains pipeline binding to a handler for the message and result types.
 /// </remarks>
+[SuppressMessage("Design", "S2326", Justification = "THandler enforces the request handler constraint when the pipeline binds this behavior.")]
 public sealed class ValidationBehavior<TMessage, TResult, THandler>(
     IEnumerable<IValidator<TMessage>> validators) : IBeforeMessageBehavior<TMessage>
     where TMessage : IRequest<TResult>
