@@ -7,4 +7,10 @@ namespace PANiXiDA.Core.Application.Storage.Models;
 /// <param name="Size">The non-negative size of the stored content in bytes; zero-length files are allowed.</param>
 public sealed record FileMetadata(
     string ContentType,
-    long Size);
+    long Size)
+{
+    /// <summary>
+    /// Gets the opaque version identifier reported by storage, or null when no identifier is available.
+    /// </summary>
+    public string? VersionId { get; init; }
+}
