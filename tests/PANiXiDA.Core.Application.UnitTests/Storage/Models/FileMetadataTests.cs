@@ -31,6 +31,7 @@ public sealed class FileMetadataTests
         size.ShouldBe(4);
         versionId.ShouldBeNull();
         metadata.VersionId.ShouldBeNull();
+        metadata.Metadata.ShouldBeEmpty();
     }
 
     [Theory(DisplayName = "File metadata preserves the optional version identifier through JSON serialization")]
@@ -60,5 +61,46 @@ public sealed class FileMetadataTests
         metadata.ContentType.ShouldBe("text/plain");
         metadata.Size.ShouldBe(4);
         metadata.VersionId.ShouldBeNull();
+    }
+
+    [Fact(DisplayName = "File metadata snapshots caller metadata and supports case-insensitive lookup")]
+    public void Constructor_WhenCallerMetadataChanges_PreservesSnapshot()
+    {
+        var values = new Dictionary<string, string> { ["update-id"] = "attempt-1" };
+
+        var metadata = new FileMetadata("text/plain", 4, "version-1", values);
+        values["update-id"] = "attempt-2";
+        values.Clear();
+
+        metadata.Metadata.Count.ShouldBe(1);
+        metadata.Metadata["UPDATE-ID"].ShouldBe("attempt-1");
+        Should.Throw<NotSupportedException>(() =>
+            ((IDictionary<string, string>)metadata.Metadata)["update-id"] = "attempt-3");
+    }
+
+    [Fact(DisplayName = "File metadata preserves caller metadata through JSON serialization")]
+    public void Serialize_WhenCallerMetadataExists_PreservesStoredMetadata()
+    {
+        var metadata = new FileMetadata(
+            "text/plain", 4, "opaque/version+id==",
+            new Dictionary<string, string> { ["update-id"] = "attempt-1" });
+
+        var json = JsonSerializer.Serialize(metadata);
+        var result = JsonSerializer.Deserialize<FileMetadata>(json);
+
+        result.ShouldNotBeNull();
+        result.ContentType.ShouldBe(metadata.ContentType);
+        result.Size.ShouldBe(metadata.Size);
+        result.VersionId.ShouldBe(metadata.VersionId);
+        result.Metadata.Count.ShouldBe(1);
+        result.Metadata["UPDATE-ID"].ShouldBe("attempt-1");
+    }
+
+    [Fact(DisplayName = "File metadata treats absent caller metadata as an empty collection")]
+    public void Constructor_WhenCallerMetadataIsNull_ReturnsEmptyCollection()
+    {
+        var metadata = new FileMetadata("text/plain", 4, "version-1", metadata: null);
+
+        metadata.Metadata.ShouldBeEmpty();
     }
 }
