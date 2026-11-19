@@ -72,8 +72,13 @@ public sealed class FileMetadataTests
         values["update-id"] = "attempt-2";
         values.Clear();
 
-        metadata.Metadata.Count.ShouldBe(1);
-        metadata.Metadata["UPDATE-ID"].ShouldBe("attempt-1");
+        var (contentType, size, versionId, snapshot) = metadata;
+        contentType.ShouldBe("text/plain");
+        size.ShouldBe(4);
+        versionId.ShouldBe("version-1");
+        snapshot.ShouldNotBeNull();
+        snapshot.Count.ShouldBe(1);
+        snapshot["UPDATE-ID"].ShouldBe("attempt-1");
         Should.Throw<NotSupportedException>(() =>
             ((IDictionary<string, string>)metadata.Metadata)["update-id"] = "attempt-3");
     }
@@ -99,8 +104,23 @@ public sealed class FileMetadataTests
     [Fact(DisplayName = "File metadata treats absent caller metadata as an empty collection")]
     public void Constructor_WhenCallerMetadataIsNull_ReturnsEmptyCollection()
     {
-        var metadata = new FileMetadata("text/plain", 4, "version-1", metadata: null);
+        var metadata = new FileMetadata("text/plain", 4, "version-1", Metadata: null);
 
         metadata.Metadata.ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "File metadata copies preserve the immutable caller metadata snapshot")]
+    public void With_WhenSizeChanges_PreservesMetadataSnapshot()
+    {
+        var metadata = new FileMetadata(
+            "text/plain", 4, "version-1",
+            new Dictionary<string, string> { ["update-id"] = "attempt-1" });
+
+        var copy = metadata with { Size = 8 };
+
+        metadata.Size.ShouldBe(4);
+        copy.Size.ShouldBe(8);
+        copy.Metadata.ShouldBeSameAs(metadata.Metadata);
+        copy.Metadata["UPDATE-ID"].ShouldBe("attempt-1");
     }
 }
