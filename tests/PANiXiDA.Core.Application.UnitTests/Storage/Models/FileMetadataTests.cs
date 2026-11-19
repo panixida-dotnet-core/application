@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using PANiXiDA.Core.Application.Storage.Constants;
 using PANiXiDA.Core.Application.Storage.Models;
 
 namespace PANiXiDA.Core.Application.UnitTests.Storage.Models;
@@ -75,7 +76,7 @@ public sealed class FileMetadataTests
     {
         var metadata = new FileMetadata(
             "text/plain", 4,
-            new Dictionary<string, string> { ["update-id"] = "attempt-1" },
+            new Dictionary<string, string> { [FileMetadataNames.ContentUpdateAttemptId] = "attempt-1" },
             "opaque/version+id==");
 
         var json = JsonSerializer.Serialize(metadata);
@@ -86,7 +87,7 @@ public sealed class FileMetadataTests
         result.Size.ShouldBe(metadata.Size);
         result.VersionId.ShouldBe(metadata.VersionId);
         result.Metadata.Count.ShouldBe(1);
-        result.Metadata["update-id"].ShouldBe("attempt-1");
+        result.Metadata["content-update-attempt-id"].ShouldBe("attempt-1");
     }
 
     [Fact(DisplayName = "File metadata copies retain the supplied caller metadata dictionary")]

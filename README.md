@@ -39,7 +39,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="5.4.*" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.3.*" />
 </ItemGroup>
 ```
 
@@ -495,6 +495,11 @@ the supplied dictionary. `FileVersion` contains an opaque `VersionId` and `LastM
 Inspect a specific version to read its caller-defined metadata; version listings do not contain it.
 Use signed URLs unchanged and send required upload headers with the declared
 content type and size.
+
+Use `FileMetadataNames.ContentUpdateAttemptId` from
+`PANiXiDA.Core.Application.Storage.Constants` for the shared
+`content-update-attempt-id` metadata name when correlating a content update
+with its stored version.
 
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.
