@@ -5,6 +5,8 @@ namespace PANiXiDA.Core.Application.Storage.Models;
 /// </summary>
 /// <param name="ContentType">The stored media type, without application-level validation.</param>
 /// <param name="Size">The non-negative size of the stored content in bytes; zero-length files are allowed.</param>
+/// <param name="VersionId">The opaque version identifier reported by storage, or null when no identifier is available.</param>
 public sealed record FileMetadata(
     string ContentType,
-    long Size);
+    long Size,
+    string? VersionId = null);
