@@ -467,21 +467,33 @@ file operations using string keys and cancellation tokens:
 
 - `UploadAsync` uploads a stream with a content type, reads from its current position,
   and leaves it open. Uploads to an existing key replace its content.
+- The metadata overload of `UploadAsync` also accepts caller-defined metadata and returns
+  `FileUploadResult` with the version created by that upload.
 - `DownloadAsync` returns a stream the caller must dispose; missing files raise `FileNotFoundException`.
-- `GetMetadataAsync` reads the stored content type, size, and optional version identifier
-  without downloading content.
+  Its version overload downloads exactly the requested version and fails if that version is absent.
+- `GetMetadataAsync` reads the stored content type, size, optional version identifier, and
+  caller-defined metadata without downloading content. Its version overload reads exactly
+  the requested version without falling back to the current one.
   It returns `FileMetadata` or `null` if the file does not exist. Access failures, an unavailable
   storage location, and other provider errors propagate; cancellation is honored.
+- `GetVersionsAsync` lazily enumerates content versions of an exact key, handling provider
+  pagination inside the adapter. It excludes deletion markers, includes historical content
+  when the current file is deleted, and does not guarantee ordering.
 - `DeleteAsync` deletes a file and succeeds if it is already absent.
 - `GetPresignedUploadUrlAsync` accepts a key, content type, and size and returns a signed `PUT` URL.
 - `GetPresignedDownloadUrlAsync` accepts a key, file name, and content type and returns a signed `GET` URL.
+  Its version overload binds the URL to one version even if newer content is uploaded.
 
-Results in `Storage.Models` include `FileMetadata` (`ContentType`, `Size`, optional `VersionId`),
+Results in `Storage.Models` include `FileMetadata` (`ContentType`, `Size`, required `Metadata`, optional `VersionId`),
 `PresignedUploadUrl` (`Url`, `ExpiresAt`, `RequiredHeaders`), and `PresignedDownloadUrl`
 (`Url`, `ExpiresAt`). Metadata size is a `long` measured in bytes, including zero for
 empty files. `VersionId` is an opaque, provider-specific storage version identifier; it is
 `null` when the provider does not report one. Stored metadata still requires application-level
-validation. Use signed URLs unchanged and send required upload headers with the declared
+validation. Metadata names omit provider header prefixes. Adapters supply the `Metadata` dictionary,
+using `ReadOnlyDictionary<string, string>.Empty` when no caller metadata exists. The model retains
+the supplied dictionary. `FileVersion` contains an opaque `VersionId` and `LastModified`.
+Inspect a specific version to read its caller-defined metadata; version listings do not contain it.
+Use signed URLs unchanged and send required upload headers with the declared
 content type and size.
 
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
