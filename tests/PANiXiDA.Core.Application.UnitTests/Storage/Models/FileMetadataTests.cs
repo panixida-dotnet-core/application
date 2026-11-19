@@ -20,15 +20,16 @@ public sealed class FileMetadataTests
         result.Size.ShouldBe(size);
     }
 
-    [Fact(DisplayName = "File metadata preserves two-value construction and deconstruction when version is omitted")]
-    public void Constructor_WhenVersionIsOmitted_PreservesTwoValueDeconstruction()
+    [Fact(DisplayName = "File metadata defaults the optional constructor version to null")]
+    public void Constructor_WhenVersionIsOmitted_DefaultsToNull()
     {
         var metadata = new FileMetadata("text/plain", 4);
 
-        var (contentType, size) = metadata;
+        var (contentType, size, versionId) = metadata;
 
         contentType.ShouldBe("text/plain");
         size.ShouldBe(4);
+        versionId.ShouldBeNull();
         metadata.VersionId.ShouldBeNull();
     }
 
@@ -38,7 +39,7 @@ public sealed class FileMetadataTests
     [InlineData("null")]
     public void Serialize_WhenRoundTripped_PreservesStoredVersion(string? versionId)
     {
-        var metadata = new FileMetadata("text/plain", 4) { VersionId = versionId };
+        var metadata = new FileMetadata("text/plain", 4, versionId);
 
         var json = JsonSerializer.Serialize(metadata);
         var result = JsonSerializer.Deserialize<FileMetadata>(json);
