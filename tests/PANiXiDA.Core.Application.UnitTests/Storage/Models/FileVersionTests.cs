@@ -29,4 +29,17 @@ public sealed class FileVersionTests
         result.ShouldBe(version);
         result.LastModified.Offset.ShouldBe(timestamp.Offset);
     }
+
+    [Fact(DisplayName = "File version copies preserve the stored identifier and modification time")]
+    public void With_WhenCopied_PreservesVersion()
+    {
+        var version = new FileVersion("opaque/version+id==", DateTimeOffset.UtcNow);
+
+        var copy = version with { };
+
+        copy.ShouldNotBeSameAs(version);
+        copy.ShouldBe(version);
+        copy.VersionId.ShouldBe(version.VersionId);
+        copy.LastModified.ShouldBe(version.LastModified);
+    }
 }

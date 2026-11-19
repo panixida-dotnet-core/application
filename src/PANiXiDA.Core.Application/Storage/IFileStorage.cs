@@ -35,7 +35,6 @@ public interface IFileStorage
     /// <param name="metadata">Metadata names and values without provider-specific header prefixes.</param>
     /// <param name="cancellationToken">The token used to cancel the upload.</param>
     /// <returns>The uploaded version identifier, or null when the provider does not report one.</returns>
-    /// <exception cref="NotSupportedException">The adapter does not implement uploads with metadata.</exception>
     /// <remarks>
     /// Adapters validate metadata against provider constraints and must not silently discard it.
     /// The returned version identifies this upload, not a subsequent read of the current file.
@@ -46,10 +45,7 @@ public interface IFileStorage
         Stream content,
         string contentType,
         IReadOnlyDictionary<string, string> metadata,
-        CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("This storage adapter does not support uploads with metadata.");
-    }
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Opens a readable stream for the file at the specified key.
@@ -60,6 +56,23 @@ public interface IFileStorage
     /// <exception cref="FileNotFoundException">No file exists at the specified key.</exception>
     Task<Stream> DownloadAsync(
         string key,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Opens a readable stream for exactly the specified file version.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="versionId">The non-empty, opaque version identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel opening the stream.</param>
+    /// <returns>A readable stream that the caller must dispose. Seeking is not guaranteed.</returns>
+    /// <exception cref="FileNotFoundException">The specified key or version does not exist.</exception>
+    /// <remarks>
+    /// Adapters must not fall back to the current version when the requested version is absent.
+    /// Access failures and other storage errors propagate to the caller.
+    /// </remarks>
+    Task<Stream> DownloadAsync(
+        string key,
+        string versionId,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -88,7 +101,6 @@ public interface IFileStorage
     /// <param name="versionId">The non-empty, opaque version identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the metadata request.</param>
     /// <returns>The version's metadata, or null if that key or version does not exist.</returns>
-    /// <exception cref="NotSupportedException">The adapter does not implement version-specific metadata.</exception>
     /// <remarks>
     /// Adapters must not fall back to the current version when the requested version is absent.
     /// Authorization failures and other storage errors propagate to the caller.
@@ -96,10 +108,7 @@ public interface IFileStorage
     Task<FileMetadata?> GetMetadataAsync(
         string key,
         string versionId,
-        CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("This storage adapter does not support version-specific metadata.");
-    }
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Enumerates stored content versions of exactly the specified key.
@@ -107,7 +116,6 @@ public interface IFileStorage
     /// <param name="key">The exact file key, not a prefix.</param>
     /// <param name="cancellationToken">The token used to cancel enumeration and provider requests.</param>
     /// <returns>Content versions, excluding deletion markers; an absent key produces an empty sequence.</returns>
-    /// <exception cref="NotSupportedException">The adapter does not implement version enumeration.</exception>
     /// <remarks>
     /// Adapters fetch provider pages as enumeration advances rather than buffering all versions.
     /// Historical content versions remain enumerable when the current file is deleted.
@@ -116,10 +124,7 @@ public interface IFileStorage
     /// </remarks>
     IAsyncEnumerable<FileVersion> GetVersionsAsync(
         string key,
-        CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("This storage adapter does not support version enumeration.");
-    }
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes the file at the specified key, succeeding if the file does not exist.
@@ -176,7 +181,6 @@ public interface IFileStorage
     /// <param name="contentType">The non-empty media type returned in the download response.</param>
     /// <param name="cancellationToken">The token used to cancel URL generation.</param>
     /// <returns>The signed URL and its expiration time.</returns>
-    /// <exception cref="NotSupportedException">The adapter does not implement version-specific URLs.</exception>
     /// <remarks>
     /// The URL must remain bound to the requested version even if the current file changes.
     /// Generating a URL does not verify that the version exists or authorize the caller.
@@ -186,8 +190,5 @@ public interface IFileStorage
         string versionId,
         string fileName,
         string contentType,
-        CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("This storage adapter does not support version-specific download URLs.");
-    }
+        CancellationToken cancellationToken);
 }

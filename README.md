@@ -470,6 +470,7 @@ file operations using string keys and cancellation tokens:
 - The metadata overload of `UploadAsync` also accepts caller-defined metadata and returns
   `FileUploadResult` with the version created by that upload.
 - `DownloadAsync` returns a stream the caller must dispose; missing files raise `FileNotFoundException`.
+  Its version overload downloads exactly the requested version and fails if that version is absent.
 - `GetMetadataAsync` reads the stored content type, size, optional version identifier, and
   caller-defined metadata without downloading content. Its version overload reads exactly
   the requested version without falling back to the current one.
@@ -491,7 +492,6 @@ empty files. `VersionId` is an opaque, provider-specific storage version identif
 validation. Metadata names omit provider header prefixes and are case-insensitive; `FileMetadata`
 snapshots the supplied dictionary. `FileVersion` contains an opaque `VersionId` and `LastModified`.
 Inspect a specific version to read its caller-defined metadata; version listings do not contain it.
-Adapters that do not support the additional operations throw `NotSupportedException`.
 Use signed URLs unchanged and send required upload headers with the declared
 content type and size.
 
