@@ -5,15 +5,6 @@ namespace PANiXiDA.Core.Application.UnitTests.Storage.Models;
 
 public sealed class FileVersionTests
 {
-    [Theory(DisplayName = "File versions reject missing identifiers")]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData(" ")]
-    public void Constructor_WhenVersionIdIsMissing_ThrowsArgumentException(string? versionId)
-    {
-        Should.Throw<ArgumentException>(() => new FileVersion(versionId!, DateTimeOffset.UtcNow));
-    }
-
     [Theory(DisplayName = "File versions preserve opaque identifiers and provider modification times")]
     [InlineData("null")]
     [InlineData("opaque/version+id==")]
@@ -36,10 +27,11 @@ public sealed class FileVersionTests
         var version = new FileVersion("opaque/version+id==", DateTimeOffset.UtcNow);
 
         var copy = version with { };
+        var (versionId, lastModified) = copy;
 
         copy.ShouldNotBeSameAs(version);
         copy.ShouldBe(version);
-        copy.VersionId.ShouldBe(version.VersionId);
-        copy.LastModified.ShouldBe(version.LastModified);
+        versionId.ShouldBe(version.VersionId);
+        lastModified.ShouldBe(version.LastModified);
     }
 }

@@ -97,7 +97,7 @@ public sealed class FileStorageContractTests
             Environment.NewLine,
             versionMethods.Where(method => method.Key != omittedVersionOperation).Select(method => method.Value));
 
-        return $"""
+        return $$"""
             #nullable enable
             using System;
             using System.IO;
