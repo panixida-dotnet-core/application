@@ -52,12 +52,32 @@ public sealed class FileStorageContractTests
         errors[0].GetMessage().ShouldContain(methodName);
     }
 
+    [Fact(DisplayName = "File metadata consumers must supply caller metadata")]
+    public void FileMetadata_WhenMetadataIsOmitted_FailsToCompile()
+    {
+        const string source = """
+            using PANiXiDA.Core.Application.Storage.Models;
+
+            public static class Consumer
+            {
+                public static FileMetadata Read() => new FileMetadata("text/plain", 4);
+            }
+            """;
+
+        var errors = GetCompilationErrors(source);
+
+        errors.ShouldHaveSingleItem();
+        errors[0].Id.ShouldBe("CS7036");
+        errors[0].GetMessage().ShouldContain("Metadata");
+    }
+
     private static string CreateAdapterSource(bool includeMetadata, string? omittedVersionOperation = null)
     {
         var metadataMethod = includeMetadata
             ? """
                 public Task<FileMetadata?> GetMetadataAsync(string key, CancellationToken cancellationToken)
-                    => Task.FromResult<FileMetadata?>(new FileMetadata("application/octet-stream", 4_294_967_296L));
+                    => Task.FromResult<FileMetadata?>(new FileMetadata(
+                        "application/octet-stream", 4_294_967_296L, ReadOnlyDictionary<string, string>.Empty));
                 """
             : string.Empty;
 
@@ -78,8 +98,8 @@ public sealed class FileStorageContractTests
                 public Task<FileMetadata?> GetMetadataAsync(
                     string key, string versionId, CancellationToken cancellationToken)
                     => Task.FromResult<FileMetadata?>(new FileMetadata(
-                        "text/plain", 4, versionId,
-                        new Dictionary<string, string> { ["operation-id"] = "attempt-1" }));
+                        "text/plain", 4,
+                        new Dictionary<string, string> { ["operation-id"] = "attempt-1" }, versionId));
                 """,
             ["versions"] = """
                 public IAsyncEnumerable<FileVersion> GetVersionsAsync(
@@ -102,6 +122,7 @@ public sealed class FileStorageContractTests
             using System;
             using System.IO;
             using System.Collections.Generic;
+            using System.Collections.ObjectModel;
             using System.Threading;
             using System.Threading.Tasks;
             using PANiXiDA.Core.Application.Storage;
