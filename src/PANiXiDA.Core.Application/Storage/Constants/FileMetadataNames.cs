@@ -9,4 +9,9 @@ public static class FileMetadataNames
     /// Identifies the content update attempt that created a stored file version.
     /// </summary>
     public const string ContentUpdateAttemptId = "content-update-attempt-id";
+
+    /// <summary>
+    /// Identifies the relocation attempt that created a stored file version.
+    /// </summary>
+    public const string RelocationAttemptId = "relocation-attempt-id";
 }

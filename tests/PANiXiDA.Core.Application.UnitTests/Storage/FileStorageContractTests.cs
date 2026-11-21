@@ -36,6 +36,8 @@ public sealed class FileStorageContractTests
     }
 
     [Theory(DisplayName = "File storage adapters must implement each version-aware operation")]
+    [InlineData("copy", "CopyAsync")]
+    [InlineData("delete-version", "DeleteAsync")]
     [InlineData("upload", "UploadAsync")]
     [InlineData("download", "DownloadAsync")]
     [InlineData("metadata", "GetMetadataAsync")]
@@ -83,6 +85,16 @@ public sealed class FileStorageContractTests
 
         var versionMethods = new Dictionary<string, string>
         {
+            ["copy"] = """
+                public Task<FileCopyResult> CopyAsync(
+                    string sourceKey, string sourceVersionId, string destinationKey, string contentType,
+                    IReadOnlyDictionary<string, string> metadata, CancellationToken cancellationToken)
+                    => Task.FromResult(new FileCopyResult("copied-version"));
+                """,
+            ["delete-version"] = """
+                public Task DeleteAsync(string key, string versionId, CancellationToken cancellationToken)
+                    => Task.CompletedTask;
+                """,
             ["upload"] = """
                 public Task<FileUploadResult> UploadAsync(
                     string key, Stream content, string contentType,
@@ -159,6 +171,14 @@ public sealed class FileStorageContractTests
                     if (uploaded.VersionId is not { } versionId)
                     {
                         return null;
+                    }
+
+                    var copied = await storage.CopyAsync(
+                        key, versionId, "copies/" + key, "text/plain",
+                        new Dictionary<string, string> { ["relocation-attempt-id"] = "attempt-2" }, cancellationToken);
+                    if (copied.VersionId is { } copiedVersion)
+                    {
+                        await storage.DeleteAsync("copies/" + key, copiedVersion, cancellationToken);
                     }
 
                     await using var downloaded = await storage.DownloadAsync(key, versionId, cancellationToken);

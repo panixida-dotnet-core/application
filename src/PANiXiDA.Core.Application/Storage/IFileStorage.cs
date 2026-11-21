@@ -137,6 +137,46 @@ public interface IFileStorage
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Copies exactly the specified source version to another key without removing the source.
+    /// </summary>
+    /// <param name="sourceKey">The source file key.</param>
+    /// <param name="sourceVersionId">The non-empty, opaque source version identifier.</param>
+    /// <param name="destinationKey">The destination key, which must differ from the source key.</param>
+    /// <param name="contentType">The non-empty media type assigned to the copy.</param>
+    /// <param name="metadata">The complete caller-defined metadata assigned to the copy.</param>
+    /// <param name="cancellationToken">The token used to cancel copying.</param>
+    /// <returns>A result containing the destination version identifier when reported by the provider.</returns>
+    /// <remarks>
+    /// The copy must never fall back to current source content. Destination metadata replaces source metadata.
+    /// The source remains available even if copying succeeds. Provider copy size limits and failures propagate.
+    /// Cancellation or a lost response does not prove that storage rejected the copy.
+    /// </remarks>
+    Task<FileCopyResult> CopyAsync(
+        string sourceKey,
+        string sourceVersionId,
+        string destinationKey,
+        string contentType,
+        IReadOnlyDictionary<string, string> metadata,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Permanently removes exactly the specified version without creating a deletion marker.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="versionId">The non-empty, opaque version identifier to remove.</param>
+    /// <param name="cancellationToken">The token used to cancel deletion.</param>
+    /// <returns>A task that completes when deletion finishes.</returns>
+    /// <remarks>
+    /// Missing versions succeed. Other versions at this key must remain untouched.
+    /// Removing the current version can make an older version current according to provider behavior.
+    /// Authorization failures and other storage errors propagate.
+    /// </remarks>
+    Task DeleteAsync(
+        string key,
+        string versionId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Creates a signed URL for uploading file content with an HTTP PUT request.
     /// </summary>
     /// <param name="key">The file key within the configured storage location.</param>
