@@ -39,7 +39,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="6.3.*" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.4.*" />
 </ItemGroup>
 ```
 
@@ -504,6 +504,18 @@ with its stored version.
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.
 This package defines contracts only; generating a URL does not verify or transfer content.
+
+`CopyAsync(sourceKey, sourceVersionId, destinationKey, contentType, size, metadata, cancellationToken)`
+copies an exact source version and returns `FileCopyResult.VersionId` for the destination.
+It leaves the source intact and replaces caller metadata with the supplied metadata.
+Supply the actual source version size in bytes; adapters can use it to choose multipart copying
+and calculate part ranges without an extra metadata request. Size does not resize or truncate the copy.
+Provider copy size limits and errors propagate. A timeout or cancellation can occur after a copy succeeds;
+use operation metadata to recover the created version.
+
+`DeleteAsync(key, versionId, cancellationToken)` permanently removes only that version,
+without creating a delete marker or deleting other versions. Removing a current version can reveal
+an older version; callers must coordinate deletion with their active-version records.
 
 ## Repository Abstraction Ownership
 
