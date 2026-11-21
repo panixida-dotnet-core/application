@@ -496,10 +496,10 @@ Inspect a specific version to read its caller-defined metadata; version listings
 Use signed URLs unchanged and send required upload headers with the declared
 content type and size.
 
-Use `FileMetadataNames.ContentUpdateAttemptId` from
+Use `FileMetadataNames.OperationAttemptId` from
 `PANiXiDA.Core.Application.Storage.Constants` for the shared
-`content-update-attempt-id` metadata name when correlating a content update
-with its stored version.
+`operation-attempt-id` metadata name when correlating a storage operation,
+such as a content update or relocation, with its stored version.
 
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.

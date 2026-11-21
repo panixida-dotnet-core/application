@@ -205,7 +205,7 @@ public sealed class FileStorageContractTests
 
                     var copied = await storage.CopyAsync(
                         key, versionId, "copies/" + key, "text/plain", 4,
-                        new Dictionary<string, string> { ["relocation-attempt-id"] = "attempt-2" }, cancellationToken);
+                        new Dictionary<string, string> { ["operation-attempt-id"] = "attempt-2" }, cancellationToken);
                     if (copied.VersionId is { } copiedVersion)
                     {
                         await storage.DeleteAsync("copies/" + key, copiedVersion, cancellationToken);
