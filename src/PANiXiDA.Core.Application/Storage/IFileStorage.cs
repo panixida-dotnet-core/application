@@ -133,11 +133,14 @@ public interface IFileStorage
     /// <param name="sourceVersionId">The non-empty, opaque source version identifier.</param>
     /// <param name="destinationKey">The destination key, which must differ from the source key.</param>
     /// <param name="contentType">The non-empty media type assigned to the copy.</param>
+    /// <param name="size">The actual, non-negative source version length in bytes.</param>
     /// <param name="metadata">The complete caller-defined metadata assigned to the copy.</param>
     /// <param name="cancellationToken">The token used to cancel copying.</param>
     /// <returns>A result containing the destination version identifier when reported by the provider.</returns>
     /// <remarks>
     /// The copy must never fall back to current source content. Destination metadata replaces source metadata.
+    /// The caller supplies the actual source version length; size is not a truncation or resize limit.
+    /// Adapters may use it to choose multipart copying and calculate part ranges without a metadata request.
     /// The source remains available even if copying succeeds. Provider copy size limits and failures propagate.
     /// Cancellation or a lost response does not prove that storage rejected the copy.
     /// </remarks>
@@ -146,6 +149,7 @@ public interface IFileStorage
         string sourceVersionId,
         string destinationKey,
         string contentType,
+        long size,
         IReadOnlyDictionary<string, string> metadata,
         CancellationToken cancellationToken);
 
