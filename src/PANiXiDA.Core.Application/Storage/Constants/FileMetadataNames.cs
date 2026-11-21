@@ -6,12 +6,7 @@ namespace PANiXiDA.Core.Application.Storage.Constants;
 public static class FileMetadataNames
 {
     /// <summary>
-    /// Identifies the content update attempt that created a stored file version.
+    /// Identifies the storage operation attempt that created a stored file version.
     /// </summary>
-    public const string ContentUpdateAttemptId = "content-update-attempt-id";
-
-    /// <summary>
-    /// Identifies the relocation attempt that created a stored file version.
-    /// </summary>
-    public const string RelocationAttemptId = "relocation-attempt-id";
+    public const string OperationAttemptId = "operation-attempt-id";
 }
