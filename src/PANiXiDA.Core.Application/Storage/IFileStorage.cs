@@ -127,16 +127,6 @@ public interface IFileStorage
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Deletes the file at the specified key, succeeding if the file does not exist.
-    /// </summary>
-    /// <param name="key">The file key within the configured storage location.</param>
-    /// <param name="cancellationToken">The token used to cancel deletion.</param>
-    /// <returns>A task that completes when deletion finishes.</returns>
-    Task DeleteAsync(
-        string key,
-        CancellationToken cancellationToken);
-
-    /// <summary>
     /// Copies exactly the specified source version to another key without removing the source.
     /// </summary>
     /// <param name="sourceKey">The source file key.</param>
@@ -157,6 +147,16 @@ public interface IFileStorage
         string destinationKey,
         string contentType,
         IReadOnlyDictionary<string, string> metadata,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes the file at the specified key, succeeding if the file does not exist.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="cancellationToken">The token used to cancel deletion.</param>
+    /// <returns>A task that completes when deletion finishes.</returns>
+    Task DeleteAsync(
+        string key,
         CancellationToken cancellationToken);
 
     /// <summary>
