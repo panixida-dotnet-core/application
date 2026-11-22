@@ -43,6 +43,7 @@ public sealed class FileStorageContractTests
     [InlineData("metadata", "GetMetadataAsync")]
     [InlineData("versions", "GetVersionsAsync")]
     [InlineData("download-url", "GetPresignedDownloadUrlAsync")]
+    [InlineData("upload-url", "GetPresignedUploadUrlAsync")]
     public void VersionOperation_WhenAdapterOmitsIt_FailsToCompile(string operation, string methodName)
     {
         var source = CreateAdapterSource(includeMetadata: true, omittedVersionOperation: operation);
@@ -115,6 +116,12 @@ public sealed class FileStorageContractTests
 
         var versionMethods = new Dictionary<string, string>
         {
+            ["upload-url"] = """
+                public Task<PresignedUploadUrl> GetPresignedUploadUrlAsync(
+                    string key, string contentType, long size,
+                    IReadOnlyDictionary<string, string> metadata, CancellationToken cancellationToken)
+                    => throw new NotSupportedException();
+                """,
             ["copy"] = """
                 public Task<FileCopyResult> CopyAsync(
                     string sourceKey, string sourceVersionId, string destinationKey, string contentType, long size,
@@ -195,6 +202,11 @@ public sealed class FileStorageContractTests
                 public static async Task<string?> ReadUploadedVersionAsync(
                     IFileStorage storage, string key, Stream content, CancellationToken cancellationToken)
                 {
+                    await storage.GetPresignedUploadUrlAsync(
+                        key, "text/plain", 4,
+                        new Dictionary<string, string> { ["operation-attempt-id"] = "attempt-1" }, cancellationToken);
+                    await storage.GetPresignedUploadUrlAsync(key, "text/plain", 4, cancellationToken);
+
                     var uploaded = await storage.UploadAsync(
                         key, content, "text/plain",
                         new Dictionary<string, string> { ["operation-id"] = "attempt-1" }, cancellationToken);

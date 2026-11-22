@@ -39,7 +39,7 @@ It defines contracts and small reusable building blocks for commands, queries, h
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="PANiXiDA.Core.Application" Version="6.4.*" />
+  <PackageReference Include="PANiXiDA.Core.Application" Version="6.6.*" />
 </ItemGroup>
 ```
 
@@ -500,6 +500,27 @@ Use `FileMetadataNames.OperationAttemptId` from
 `PANiXiDA.Core.Application.Storage.Constants` for the shared
 `operation-attempt-id` metadata name when correlating a storage operation,
 such as a content update or relocation, with its stored version.
+
+To correlate a direct upload with an application operation, use the metadata overload:
+
+```csharp
+var upload = await storage.GetPresignedUploadUrlAsync(
+    key: "personal/user-id/file-id",
+    contentType: "image/png",
+    size: 1024,
+    metadata: new Dictionary<string, string>
+    {
+        [FileMetadataNames.OperationAttemptId] = operationAttemptId.ToString()
+    },
+    cancellationToken: cancellationToken);
+```
+
+Metadata names omit provider prefixes. Adapters bind the metadata to the signed request and
+include any required provider headers in `RequiredHeaders`. Clients must send those headers
+unchanged. The existing overload remains available for uploads without caller metadata.
+Storage adapters must implement both overloads; silently dropping metadata is not supported.
+A signed URL can be reused until it expires. Verify the stored version and operation marker
+before accepting new content; URL generation alone does not confirm a completed upload.
 
 Applications own keys, metadata, authorization, and upload verification. Infrastructure
 adapters configure the provider, storage location, optional prefix, and URL lifetime.
