@@ -199,6 +199,28 @@ public interface IFileStorage
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Creates a signed PUT URL that binds caller-defined metadata to the upload.
+    /// </summary>
+    /// <param name="key">The file key within the configured storage location.</param>
+    /// <param name="contentType">The non-empty media type required for the upload.</param>
+    /// <param name="size">The expected non-negative content length in bytes.</param>
+    /// <param name="metadata">Metadata names and values without provider-specific header prefixes.</param>
+    /// <param name="cancellationToken">The token used to cancel URL generation.</param>
+    /// <returns>The signed URL, its expiration time, and all required request headers.</returns>
+    /// <remarks>
+    /// Adapters must bind every metadata entry to the signed request and reject unsupported metadata.
+    /// RequiredHeaders includes provider-specific metadata headers that the client must send unchanged.
+    /// Generating a URL does not upload content or confirm completion. A URL may be used more than once
+    /// until it expires; applications must verify the stored version and correlate operation metadata.
+    /// </remarks>
+    Task<PresignedUploadUrl> GetPresignedUploadUrlAsync(
+        string key,
+        string contentType,
+        long size,
+        IReadOnlyDictionary<string, string> metadata,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Creates a signed URL for downloading file content with an HTTP GET request.
     /// </summary>
     /// <param name="key">The file key within the configured storage location.</param>
